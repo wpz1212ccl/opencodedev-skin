@@ -18,9 +18,7 @@
 
 ### 视频演示
 
-> 将视频上传到 GitHub Issue 后，替换下方 URL 即可自动渲染播放器
-
-https://github.com/user-attachments/assets/YOUR_VIDEO_ID_HERE
+https://github.com/user-attachments/assets/13c29838-195f-4208-b245-711b9af21b18
 
 ### 截图
 
