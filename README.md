@@ -23,14 +23,14 @@ https://github.com/user-attachments/assets/13c29838-195f-4208-b245-711b9af21b18
 ### 截图
 
 <div align="center">
-<img src="windows/assets/samples/screenshot.png" width="800" alt="OpenCode-Skin 效果截图">
+<img src="https://github.com/wpz1212ccl/opencodedev-skin/releases/download/untagged-38a929f313ed0feea4b8/screenshot.png" width="800" alt="OpenCode-Skin 效果截图">
 </div>
 
 ### 示例壁纸
 
 | 冷峻眼神 | 回眸少女 | 默认壁纸 |
 |:---:|:---:|:---:|
-| <img src="windows/assets/samples/冷峻眼神-动漫.png" width="250"> | <img src="windows/assets/samples/回眸的少女-插画.png" width="250"> | <img src="windows/assets/default-wallpaper.png" width="250"> |
+| <img src="https://github.com/wpz1212ccl/opencodedev-skin/releases/download/untagged-38a929f313ed0feea4b8/lengjunshenyan.png" width="250"> | <img src="https://github.com/wpz1212ccl/opencodedev-skin/releases/download/untagged-38a929f313ed0feea4b8/huimouShaonv.png" width="250"> | <img src="windows/assets/default-wallpaper.png" width="250"> |
 
 ---
 
