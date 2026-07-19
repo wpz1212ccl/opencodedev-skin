@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Test results
+windows/tests/results/
+
+# Uploads
+windows/assets/uploads/
+
+# OS files
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Large files (upload to GitHub separately, reference via URL)
+windows/assets/samples/demo.mp4
+windows/assets/video-bg.mp4
+windows/assets/video-bg.b64
