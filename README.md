@@ -225,20 +225,6 @@ auto-inject.ps1 后台监控检测到 OpenCode
 - MutationObserver — 页面变化监听
 - Chrome DevTools Protocol — 浏览器远程控制
 
-## macOS 开发路线
-
-macOS 支持分 5 个阶段逐步实现：
-
-| 阶段 | 内容 | 状态 |
-|------|------|------|
-| Phase 1 | 基础启动脚本 + 目录重组 | ✅ 已完成 |
-| Phase 2 | auto-inject 后台守护 + install/restore | 🔜 计划中 |
-| Phase 3 | LaunchAgent 开机自启 | 🔜 计划中 |
-| Phase 4 | macOS 菜单栏图标 | 🔜 计划中 |
-| Phase 5 | 全面测试 + 文档完善 | 🔜 计划中 |
-
-详见 [plan/macos-support-plan.md](plan/macos-support-plan.md)
-
 ---
 
 ## 许可证
