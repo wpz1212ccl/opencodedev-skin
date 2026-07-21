@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- macOS 基础支持（Phase 1）：一键启动脚本 + 共享目录重组
+  - `macos/scripts/common.sh` — macOS 平台公共函数库
+  - `macos/scripts/start.sh` — macOS 一键启动器
+  - 平台无关资源提升到根目录（`assets/`、`presets/`、`scripts/`）
+  - macOS 开发路线图（`plan/macos-support-plan.md`）
+- OpenCode 安装查找支持 macOS（Spotlight `mdfind`、`/Applications`、`which`）
+- macOS 进程管理（`pgrep`/`pkill`/`lsof`）
+
+### Changed
+- 目录结构重构：`assets/`、`presets/`、`scripts/*.mjs` 从 `windows/` 提升到根目录，实现 Windows/macOS 共享
+- Windows PowerShell 脚本路径适配新的根级目录
+
+### Fixed
+- `assets/theme.json` 壁纸引用修正（`五条悟.png` → `default-wallpaper.png`）
+
 ## [2.0.0] - 2025-07-19
 
 ### Added

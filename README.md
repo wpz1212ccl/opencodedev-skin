@@ -5,7 +5,7 @@
 **为 OpenCode Desktop 打造的沉浸式皮肤引擎**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Windows_|_macOS-blue.svg)]()
 [![Node](https://img.shields.io/badge/Node.js-18+-green.svg)]()
 
 *通过 CDP 注入，让 OpenCode 拥有全屏壁纸 + 毛玻璃 UI + 实时控制面板*
@@ -55,42 +55,69 @@ https://github.com/user-attachments/assets/13c29838-195f-4208-b245-711b9af21b18
 
 ### 前置要求
 
-- Windows 10/11
+- Windows 10/11 或 macOS
 - Node.js 18+
 - OpenCode Desktop 已安装
 
 ### 安装
 
-`ash
-git clone https://github.com/wpz1212ccl/opencodeev-skin.git
-cd opencodeev-skin
-`
+```bash
+git clone https://github.com/wpz1212ccl/opencode-skin.git
+cd opencode-skin
+```
 
-### 方式一：一键启动
+### Windows
 
-`powershell
+#### 方式一：一键启动
+
+```powershell
 cd windows
 .\scripts\start.ps1
-`
+```
 
-### 方式二：手动启动
+#### 方式二：手动启动
 
-`ash
+```bash
 # 1. 启动 OpenCode（带 CDP 调试端口）
 & "C:\Path\To\OpenCode.exe" --remote-debugging-port=9335
 
 # 2. 注入皮肤
-cd windows
-node scripts\injector.mjs --port 9335 --theme-dir .\assets
-`
+node scripts/injector.mjs --port 9335 --theme-dir assets
+```
 
-### 方式三：开机自启（推荐）
+#### 方式三：开机自启（推荐）
 
-`powershell
+```powershell
 cd windows
 .\scripts\setup-autostart.ps1 -Install
 .\scripts\auto-inject.ps1
-`
+```
+
+### macOS
+
+> **注意**：macOS 支持目前处于 Phase 1（基础启动），自动注入守护、开机自启、菜单栏图标等功能将在后续阶段添加。
+
+#### 一键启动
+
+```bash
+./macos/scripts/start.sh
+```
+
+#### 指定 OpenCode 路径
+
+```bash
+./macos/scripts/start.sh --opencode-path "/Applications/OpenCode.app/Contents/MacOS/OpenCode"
+```
+
+#### 手动启动
+
+```bash
+# 1. 启动 OpenCode（带 CDP 调试端口）
+/Applications/OpenCode.app/Contents/MacOS/OpenCode --remote-debugging-port=9335 &
+
+# 2. 注入皮肤
+node scripts/injector.mjs --port 9335 --watch --auto-browser-id --theme-dir assets
+```
 
 ---
 
@@ -127,28 +154,30 @@ cd windows
 
 ## 项目结构
 
-`
-opencodeev-skin/
-├── README.md
-├── LICENSE
-├── CHANGELOG.md
+```
+opencode-skin/
+├── assets/                       ← 平台无关资源（CSS、JS、壁纸、主题配置）
+│   ├── dream-skin.css
+│   ├── renderer-inject.js
+│   ├── theme.json
+│   └── default-wallpaper.png
+├── scripts/                      ← 平台无关核心引擎
+│   ├── injector.mjs              ← CDP 注入引擎
+│   ├── image-server.mjs          ← 壁纸 HTTP 服务
+│   └── image-metadata.mjs        ← 图片头解析
+├── presets/                      ← 预设主题
+├── windows/                      ← Windows 专属脚本
+│   ├── scripts/  (.ps1)
+│   └── tests/
+├── macos/                        ← macOS 专属脚本
+│   └── scripts/
+│       ├── common.sh
+│       └── start.sh
 ├── docs/
 │   └── ARCHITECTURE.md
-└── windows/
-    ├── assets/
-    │   ├── dream-skin.css
-    │   ├── renderer-inject.js
-    │   ├── theme.json
-    │   └── default-wallpaper.png
-    ├── scripts/
-    │   ├── injector.mjs
-    │   ├── image-server.mjs
-    │   ├── auto-inject.ps1
-    │   ├── start.ps1
-    │   └── ...
-    ├── presets/
-    └── tests/
-`
+└── plan/
+    └── macos-support-plan.md     ← macOS 开发路线图
+```
 
 ---
 
@@ -173,10 +202,24 @@ auto-inject.ps1 后台监控检测到 OpenCode
 ## 技术栈
 
 - Node.js — CDP 连接 + HTTP 服务器
-- PowerShell — 系统集成
+- PowerShell / Bash — 系统集成
 - CSS Custom Properties — 实时参数控制
 - MutationObserver — 页面变化监听
 - Chrome DevTools Protocol — 浏览器远程控制
+
+## macOS 开发路线
+
+macOS 支持分 5 个阶段逐步实现：
+
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| Phase 1 | 基础启动脚本 + 目录重组 | ✅ 已完成 |
+| Phase 2 | auto-inject 后台守护 + install/restore | 🔜 计划中 |
+| Phase 3 | LaunchAgent 开机自启 | 🔜 计划中 |
+| Phase 4 | macOS 菜单栏图标 | 🔜 计划中 |
+| Phase 5 | 全面测试 + 文档完善 | 🔜 计划中 |
+
+详见 [plan/macos-support-plan.md](plan/macos-support-plan.md)
 
 ---
 

@@ -1,0 +1,333 @@
+/* OpenCode Dream Skin - CSS Theme */
+
+html.opencode-dream-skin {
+  --dream-blur: 3px;
+  --dream-brightness: 100%;
+  --dream-contrast: 100%;
+  --dream-saturate: 100%;
+  --dream-container-alpha: 0.65;
+  --dream-titlebar-alpha: 0.75;
+  --dream-content-alpha: 0.7;
+  --dream-composer-alpha: 0.8;
+  background-image: var(--dream-art) !important;
+  background-position: var(--dream-art-position, 72% 45%) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+  background-color: transparent !important;
+}
+
+html.opencode-dream-skin body,
+html.opencode-dream-skin #root {
+  background-color: transparent !important;
+}
+
+/* Main container */
+html.opencode-dream-skin #root > div:first-child {
+  background-color: rgba(249, 247, 241, var(--dream-container-alpha)) !important;
+  backdrop-filter: blur(var(--dream-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--dream-blur)) !important;
+  filter: brightness(var(--dream-brightness)) contrast(var(--dream-contrast)) saturate(var(--dream-saturate)) !important;
+  contain: layout style !important;
+}
+
+/* Titlebar */
+html.opencode-dream-skin header[data-slot="titlebar-v2"] {
+  background-color: rgba(249, 247, 241, var(--dream-titlebar-alpha)) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  -webkit-app-region: drag;
+}
+
+html.opencode-dream-skin header[data-slot="titlebar-v2"] button,
+html.opencode-dream-skin header[data-slot="titlebar-v2"] [data-component="icon-button-v2"],
+html.opencode-dream-skin header[data-slot="titlebar-v2"] [data-component="icon-button"] {
+  -webkit-app-region: no-drag;
+}
+
+/* Content panel */
+html.opencode-dream-skin main .bg-v2-background-bg-base {
+  background-color: rgba(253, 251, 245, var(--dream-content-alpha)) !important;
+}
+
+/* Composer */
+html.opencode-dream-skin [data-component="session-composer"] {
+  background-color: rgba(253, 251, 245, var(--dream-composer-alpha)) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.opencode-dream-skin [data-component="prompt-input"] {
+  background-color: transparent !important;
+}
+
+html.opencode-dream-skin [data-component="button-v2"],
+html.opencode-dream-skin [data-component="icon-button-v2"],
+html.opencode-dream-skin [data-component="icon-button"] {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+html.opencode-dream-skin [data-component="button-v2"]:hover,
+html.opencode-dream-skin [data-component="icon-button-v2"]:hover,
+html.opencode-dream-skin [data-component="icon-button"]:hover {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+html.opencode-dream-skin [data-component="dialog-stack"] {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+html.opencode-dream-skin [data-component="toast-v2-region"] {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+html.opencode-dream-skin [data-slot="titlebar-tab-item"] {
+  background-color: rgba(240, 239, 233, 0.15) !important;
+}
+
+html.opencode-dream-skin [data-slot="titlebar-tab-item"][data-active="true"] {
+  background-color: rgba(253, 251, 245, 0.25) !important;
+}
+
+html.opencode-dream-skin #root {
+  color: #2d3748 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.opencode-dream-skin ::-webkit-scrollbar { width: 6px; height: 6px; }
+html.opencode-dream-skin ::-webkit-scrollbar-track { background: transparent !important; }
+html.opencode-dream-skin ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15) !important; border-radius: 3px; }
+html.opencode-dream-skin ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25) !important; }
+
+/* Home page — use same alpha var as base rule so opacity slider works */
+html.opencode-dream-skin #root > div:first-child.dream-home { background-color: rgba(249, 247, 241, var(--dream-container-alpha)) !important; contain: layout style !important; }
+html.opencode-dream-skin #root > div:first-child.dream-home > * { background-color: rgba(253, 251, 245, 0.6) !important; contain: layout style !important; }
+html.opencode-dream-skin [class*="bg-v2-background"].dream-home,
+html.opencode-dream-skin .dream-home[class*="bg-v2-background"] { background-color: transparent !important; }
+html.opencode-dream-skin .dream-home [class*="bg-v2-background"] { background-color: rgba(253, 251, 245, 0.55) !important; }
+
+/* Video background */
+#opencode-dream-skin-video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: -2147483647 !important; pointer-events: none !important; background: #000 !important; }
+#opencode-dream-skin-video-el { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+#opencode-dream-skin-chrome { display: none !important; pointer-events: none !important; }
+
+/* Video active: disable backdrop-filter on main container to avoid per-frame blur recomputation */
+html.opencode-dream-skin.dream-video-active #root > div:first-child {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ====== DARK MODE ====== */
+html.opencode-dream-skin.dream-theme-dark #root > div:first-child { background-color: rgba(28, 28, 34, var(--dream-container-alpha)) !important; }
+html.opencode-dream-skin.dream-theme-dark header[data-slot="titlebar-v2"] { background-color: rgba(28, 28, 34, var(--dream-titlebar-alpha)) !important; border-bottom-color: rgba(255, 255, 255, 0.08) !important; }
+html.opencode-dream-skin.dream-theme-dark main .bg-v2-background-bg-base { background-color: rgba(30, 30, 36, var(--dream-content-alpha)) !important; }
+html.opencode-dream-skin.dream-theme-dark [data-component="session-composer"] { background-color: rgba(30, 30, 36, var(--dream-composer-alpha)) !important; border-color: rgba(255, 255, 255, 0.08) !important; }
+html.opencode-dream-skin.dream-theme-dark [data-component="button-v2"],
+html.opencode-dream-skin.dream-theme-dark [data-component="icon-button-v2"],
+html.opencode-dream-skin.dream-theme-dark [data-component="icon-button"] { background-color: rgba(255, 255, 255, 0.1) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+html.opencode-dream-skin.dream-theme-dark [data-component="button-v2"]:hover,
+html.opencode-dream-skin.dream-theme-dark [data-component="icon-button-v2"]:hover,
+html.opencode-dream-skin.dream-theme-dark [data-component="icon-button"]:hover { background-color: rgba(255, 255, 255, 0.15) !important; }
+html.opencode-dream-skin.dream-theme-dark [data-component="dialog-stack"] { background-color: rgba(30, 30, 36, 0.85) !important; }
+html.opencode-dream-skin.dream-theme-dark [data-component="toast-v2-region"] { background-color: rgba(30, 30, 36, 0.85) !important; }
+html.opencode-dream-skin.dream-theme-dark [data-slot="titlebar-tab-item"] { background-color: rgba(255, 255, 255, 0.08) !important; }
+html.opencode-dream-skin.dream-theme-dark [data-slot="titlebar-tab-item"][data-active="true"] { background-color: rgba(30, 30, 36, 0.3) !important; }
+html.opencode-dream-skin.dream-theme-dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15) !important; }
+html.opencode-dream-skin.dream-theme-dark ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25) !important; }
+html.opencode-dream-skin.dream-theme-dark #root > div:first-child.dream-home > * { background-color: rgba(28, 28, 34, 0.6) !important; }
+html.opencode-dream-skin.dream-theme-dark #root > div:first-child.dream-home [class*="bg-v2-background"] { background-color: rgba(28, 28, 34, 0.55) !important; }
+html.opencode-dream-skin.dream-theme-dark #root { color: #e2e8f0 !important; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important; }
+
+/* ====== 通用首页修复 (解决遮挡壁纸的兄弟节点) ====== */
+html.dream-active-home #root > div {
+  background-color: rgba(249, 247, 241, var(--dream-container-alpha)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+html.dream-active-home #root > div > * {
+  background-color: rgba(253, 251, 245, 0.6) !important;
+}
+html.dream-active-home.dream-theme-dark #root > div > * {
+  background-color: rgba(28, 28, 34, 0.6) !important;
+}
+
+/* ====== SETTINGS PANEL ====== */
+#dream-settings-panel {
+  position: fixed !important;
+  bottom: 16px !important;
+  right: 16px !important;
+  width: 320px !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+  background: rgba(30, 30, 36, 0.92) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  z-index: 2147483647 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-size: 12px !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out !important;
+  will-change: transform, opacity !important;
+}
+#dream-settings-panel.hidden {
+  opacity: 0 !important;
+  transform: translateY(10px) !important;
+  pointer-events: none !important;
+}
+#dream-settings-panel .dream-panel-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  cursor: move !important;
+  user-select: none !important;
+}
+#dream-settings-panel .dream-panel-title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #f0f0f0 !important;
+}
+#dream-settings-panel .dream-panel-close {
+  background: none !important;
+  border: none !important;
+  color: #999 !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  line-height: 1 !important;
+}
+#dream-settings-panel .dream-panel-close:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+#dream-settings-panel .dream-section {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+#dream-settings-panel .dream-section:last-child { border-bottom: none !important; }
+#dream-settings-panel .dream-section-title {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  color: #888 !important;
+  margin-bottom: 10px !important;
+}
+#dream-settings-panel .dream-row {
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 8px !important;
+}
+#dream-settings-panel .dream-row:last-child { margin-bottom: 0 !important; }
+#dream-settings-panel .dream-label {
+  width: 80px !important;
+  flex-shrink: 0 !important;
+  font-size: 11px !important;
+  color: #bbb !important;
+}
+#dream-settings-panel .dream-slider-wrap {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+#dream-settings-panel .dream-slider {
+  flex: 1 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  height: 4px !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 2px !important;
+  outline: none !important;
+}
+#dream-settings-panel .dream-slider::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background: #7c6aef !important;
+  cursor: pointer !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+}
+#dream-settings-panel .dream-slider::-webkit-slider-thumb:hover {
+  background: #9580ff !important;
+}
+#dream-settings-panel .dream-value {
+  width: 44px !important;
+  text-align: right !important;
+  font-size: 11px !important;
+  color: #aaa !important;
+  font-variant-numeric: tabular-nums !important;
+}
+#dream-settings-panel .dream-btn-row {
+  display: flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+#dream-settings-panel .dream-btn {
+  flex: 1 !important;
+  min-width: 60px !important;
+  padding: 6px 8px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  color: #ccc !important;
+  font-size: 11px !important;
+  cursor: pointer !important;
+  text-align: center !important;
+  transition: background 0.15s !important;
+}
+#dream-settings-panel .dream-btn:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+}
+#dream-settings-panel .dream-toggle {
+  position: relative !important;
+  width: 36px !important;
+  height: 20px !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  transition: background 0.2s !important;
+  border: none !important;
+  padding: 0 !important;
+}
+#dream-settings-panel .dream-toggle.on {
+  background: #7c6aef !important;
+}
+#dream-settings-panel .dream-toggle::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 2px !important;
+  left: 2px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  transition: transform 0.2s !important;
+}
+#dream-settings-panel .dream-toggle.on::after {
+  transform: translateX(16px) !important;
+}
+#dream-settings-panel .dream-select {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px !important;
+  color: #ccc !important;
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+#dream-settings-panel .dream-select option {
+  background: #1e1e24 !important;
+  color: #ccc !important;
+}
+#dream-settings-panel input[type="file"] { display: none !important; }

@@ -9,7 +9,8 @@ param(
 
 $ErrorActionPreference = "SilentlyContinue"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$InjectorPath = "$ScriptDir\injector.mjs"
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+$InjectorPath = "$ProjectRoot\scripts\injector.mjs"
 $StateDir = "$env:LOCALAPPDATA\OpenCodeDreamSkin"
 $LogDir = "$StateDir\logs"
 
@@ -27,7 +28,7 @@ function Write-Log($msg) {
 Write-Log "Auto-inject monitor started (port=$CdpPort)"
 
 # Read theme from state.json or use default
-$themeDir = "$ScriptDir\..\assets"
+$themeDir = "$ProjectRoot\assets"
 $stateFile = "$StateDir\state.json"
 if (Test-Path $stateFile) {
   try {
@@ -43,7 +44,7 @@ $injectorPid = $null
 $imageServerPid = $null
 
 function Start-ImageServer {
-  $serverPath = "$ScriptDir\image-server.mjs"
+  $serverPath = "$ProjectRoot\scripts\image-server.mjs"
   if (Test-Path $serverPath) {
     $proc = Start-Process -FilePath "node" -ArgumentList @($serverPath, "--port", "18765", "--theme-dir", $themeDir) -PassThru -WindowStyle Hidden
     $script:imageServerPid = $proc.Id

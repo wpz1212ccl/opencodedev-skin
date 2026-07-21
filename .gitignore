@@ -21,6 +21,9 @@ Desktop.ini
 # Logs
 *.log
 
+# Plan
+plan/
+
 # Large files (upload to GitHub separately, reference via URL)
 windows/assets/samples/demo.mp4
 windows/assets/video-bg.mp4

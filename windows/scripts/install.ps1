@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RootDir = Split-Path -Parent $ScriptDir
+$RootDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 
 . "$ScriptDir\common.ps1"
 
@@ -46,7 +46,7 @@ if (-not (Test-Path $stateDir)) {
   Write-Host "Created configuration directory: $stateDir" -ForegroundColor Green
 }
 
-$injectorPath = "$ScriptDir\injector.mjs"
+$injectorPath = "$RootDir\scripts\injector.mjs"
 if (-not (Test-Path $injectorPath)) {
   throw "Injector not found at: $injectorPath"
 }

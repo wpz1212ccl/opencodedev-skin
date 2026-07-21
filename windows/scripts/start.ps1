@@ -11,7 +11,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RootDir = Split-Path -Parent $ScriptDir
+$RootDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 
 . "$ScriptDir\common.ps1"
 
@@ -65,7 +65,7 @@ $injectorArgs = @(
 
 if ($Pause) { $injectorArgs += "--pause" }
 
-$injectorPath = "$ScriptDir\injector.mjs"
+$injectorPath = "$RootDir\scripts\injector.mjs"
 if (-not (Test-Path $injectorPath)) {
   throw "Injector not found at: $injectorPath"
 }

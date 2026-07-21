@@ -6,6 +6,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -52,14 +55,14 @@ function Switch-Theme {
   # Restart injector with new theme
   $newState = Get-Content $stateFile | ConvertFrom-Json
   $injectorArgs = @("--port", $state.CdpPort, "--auto-browser-id", "--theme-dir", $newState.ThemeDir)
-  $injectorPath = "$PSScriptRoot\injector.mjs"
+  $injectorPath = "$ProjectRoot\scripts\injector.mjs"
   $proc = Start-Process -FilePath "node" -ArgumentList @($injectorPath) + $injectorArgs -PassThru -WindowStyle Hidden
   $newState.InjectorPid = $proc.Id
   $newState | ConvertTo-Json | Set-Content -Path $stateFile -Encoding UTF8
   $trayIcon.ShowBalloonTip(2000, "OpenCode Skin", "Theme: $ThemeName", [System.Windows.Forms.ToolTipIcon]::Info)
 }
 
-$presetsDir = "$PSScriptRoot\..\presets"
+$presetsDir = "$ProjectRoot\presets"
 if (Test-Path $presetsDir) {
   $presetDirs = Get-ChildItem -Path $presetsDir -Directory
   foreach ($dir in $presetDirs) {

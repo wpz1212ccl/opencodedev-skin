@@ -62,7 +62,7 @@ if (-not $SkipInjectorTests) {
 }
 
 if (-not $SkipThemeTests) {
-  $themeJson = "$RootDir\windows\assets\theme.json"
+  $themeJson = "$RootDir\assets\theme.json"
   if (Test-Path $themeJson) {
     $tests += Test-Function "Theme JSON valid" {
       $theme = Get-Content $themeJson | ConvertFrom-Json
@@ -71,7 +71,7 @@ if (-not $SkipThemeTests) {
     
     $tests += Test-Function "Theme image exists" {
       $theme = Get-Content $themeJson | ConvertFrom-Json
-      $imagePath = Join-Path "$RootDir\windows\assets" $theme.image
+      $imagePath = Join-Path "$RootDir\assets" $theme.image
       return Test-Path $imagePath
     }
   }
@@ -79,13 +79,13 @@ if (-not $SkipThemeTests) {
 
 $tests += Test-Function "Required files exist" {
   $requiredFiles = @(
-    "$RootDir\windows\scripts\injector.mjs",
+    "$RootDir\scripts\injector.mjs",
     "$RootDir\windows\scripts\common.ps1",
     "$RootDir\windows\scripts\start.ps1",
     "$RootDir\windows\scripts\restore.ps1",
-    "$RootDir\windows\assets\theme.json",
-    "$RootDir\windows\assets\dream-skin.css",
-    "$RootDir\windows\assets\renderer-inject.js"
+    "$RootDir\assets\theme.json",
+    "$RootDir\assets\dream-skin.css",
+    "$RootDir\assets\renderer-inject.js"
   )
   
   foreach ($file in $requiredFiles) {

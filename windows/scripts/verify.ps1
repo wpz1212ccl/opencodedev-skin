@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RootDir = Split-Path -Parent $ScriptDir
+$RootDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 
 . "$ScriptDir\common.ps1"
 
@@ -24,13 +24,13 @@ if ($nodeCmd) {
 }
 $checks += @{ Name = "Node.js"; Pass = [bool]$nodeCmd; Message = $nodeMessage }
 
-$injectorPath = "$ScriptDir\injector.mjs"
+$injectorPath = "$RootDir\scripts\injector.mjs"
 $checks += @{ Name = "Injector"; Pass = Test-Path $injectorPath; Message = $injectorPath }
 
 $themeDir = "$RootDir\assets"
 $checks += @{ Name = "Theme directory"; Pass = Test-Path $themeDir; Message = $themeDir }
 
-$themeJson = "$themeDir\theme.json"
+$themeJson = "$RootDir\assets\theme.json"
 $checks += @{ Name = "Theme configuration"; Pass = Test-Path $themeJson; Message = $themeJson }
 
 $installs = Find-OpenCodeInstall
