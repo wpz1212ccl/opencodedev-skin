@@ -150,6 +150,24 @@ node scripts/injector.mjs --port 9335 --watch --auto-browser-id --theme-dir asse
 - Change：选择本地图片或视频替换壁纸
 - Reset：只重置滑块参数，保留当前壁纸
 
+### 更换壁纸
+
+**方式一：运行时换（推荐）**
+
+皮肤注入后按 **Ctrl+S** 打开设置面板，点击 **Change** 按钮选择本地图片（JPG/PNG）或视频（MP4/WebM）。更换后的壁纸持久化到 localStorage，下次启动自动恢复。
+
+**方式二：更改默认壁纸**
+
+将新壁纸放入 `assets/` 目录，修改 `assets/theme.json` 中的 `image` 字段：
+
+```json
+{
+  "image": "my-wallpaper.jpg"
+}
+```
+
+下次启动时生效。
+
 ---
 
 ## 项目结构
