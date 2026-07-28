@@ -5,7 +5,7 @@
 **为 OpenCode Desktop 打造的沉浸式皮肤引擎**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-Windows_%7C_macOS-blue.svg)]()
 [![Node](https://img.shields.io/badge/Node.js-18+-green.svg)]()
 
 *通过 CDP 注入，让 OpenCode 拥有全屏壁纸 + 毛玻璃 UI + 实时控制面板*
@@ -54,9 +54,46 @@
 
 ### 前置要求
 
-- Windows 10/11
+- Windows 10/11 或 macOS 12+
 - Node.js 18+
 - OpenCode Desktop 已安装
+
+### 🤖 AI 一键配置
+
+将下面整段复制给 Claude Code，它会自动检测系统、安装依赖、验证环境：
+
+#start-prompt
+你是一个环境配置专家。请为 opencodedev-skin 项目执行以下完整配置流程：
+
+**第一步：检测环境**
+- 判断当前是 Windows 还是 macOS
+- 检查 Node.js >= 18（`node --version`）
+- 检查 git（`git --version`）
+
+**第二步：根据系统执行对应操作**
+
+*如果检测到 Windows：*
+- 确保 `windows/scripts/` 下所有 .ps1 文件存在
+- 检查 `windows/assets/theme.json` 中的壁纸路径指向一个真实文件
+- 查找 OpenCode 安装路径：`Get-Command OpenCode.exe`，如果找不到则在常见路径下搜索
+- 运行验证：`powershell -ExecutionPolicy Bypass -File windows\scripts\verify.ps1`
+
+*如果检测到 macOS：*
+- 确保 `macos/scripts/` 下所有 .sh 文件存在且可执行（`chmod +x macos/scripts/*.sh macos/tests/*.sh`）
+- 检查必需工具：`curl`、`lsof`、`pgrep`、`mdfind`
+- 查找 OpenCode：先找 `/Applications/OpenCode.app`，再用 `mdfind` 和 `which opencode`
+- 运行单元测试：`bash macos/tests/run-tests.sh --unit`
+- 运行环境检查：`bash macos/tests/run-tests.sh --env`
+
+**第三步：输出配置报告**
+- 操作系统 + 版本
+- Node.js 版本
+- OpenCode 安装路径（找到则显示路径，未找到则提示用户手动指定）
+- 所有检查项的结果表（✅ 通过 / ❌ 失败 / ⚠️ 跳过）
+- 下一步操作建议
+#end-prompt
+
+> 使用方式：打开 Claude Code，粘贴上述提示（从 `#start-prompt` 到 `#end-prompt`），回车即可。
 
 ### 安装
 
@@ -149,7 +186,14 @@ opencodedev-skin/
 ├── LICENSE
 ├── CHANGELOG.md
 ├── .gitignore
-└── windows/
+├── .gitattributes                # 跨平台换行符配置
+├── macos/                        # macOS 支持
+│   ├── scripts/
+│   │   ├── common.sh             # macOS 通用函数（Find-OpenCode/进程管理/CDP 等待）
+│   │   └── start.sh              # macOS 一键启动器
+│   └── tests/
+│       └── run-tests.sh          # macOS 测试套件（33 项）
+└── windows/                      # Windows 支持
     ├── assets/
     │   ├── dream-skin.css           # CSS 主题规则
     │   ├── renderer-inject.js       # DOM 注入/清理逻辑
@@ -204,7 +248,8 @@ start.ps1（PowerShell 隐藏窗口）
 ## 技术栈
 
 - **Node.js** — CDP WebSocket 连接 + HTTP 图片服务器
-- **PowerShell** — 系统集成、进程管理
+- **PowerShell** — Windows 系统集成、进程管理
+- **Bash** — macOS 系统集成、进程管理
 - **CSS Custom Properties** — 实时参数控制（滑块 → CSS 变量）
 - **MutationObserver** — 页面导航监听
 - **Chrome DevTools Protocol** — 浏览器远程调试接口
