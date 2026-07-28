@@ -26,6 +26,12 @@
 
 </div>
 
+### 视频演示
+
+<video src="https://raw.githubusercontent.com/wpz1212ccl/opencodedev-skin/main/docs/videos/demo1.mp4" controls width="800"></video>
+
+<video src="https://raw.githubusercontent.com/wpz1212ccl/opencodedev-skin/main/docs/videos/demo2.mp4" controls width="800"></video>
+
 ---
 
 ## 功能特性
