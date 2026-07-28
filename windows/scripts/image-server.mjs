@@ -42,8 +42,13 @@ async function main() {
   let cachedData = null;
   let cachedPath = null;
 
+  const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+  const VIDEO_EXTS = new Set([".mp4", ".webm", ".ogg", ".mov"]);
+
   const server = http.createServer(async (req, res) => {
-    if (req.url === "/skin-image") {
+    const url = new URL(req.url, `http://127.0.0.1:${opts.port}`);
+
+    if (url.pathname === "/skin-image") {
       try {
         if (!cachedData || cachedPath !== imagePath) {
           cachedData = await fs.readFile(imagePath);
@@ -56,6 +61,45 @@ async function main() {
           "Cache-Control": "public, max-age=3600",
         });
         res.end(cachedData);
+      } catch {
+        res.writeHead(404);
+        res.end("Not found");
+      }
+    } else if (url.pathname === "/api/images") {
+      try {
+        const allFiles = await fs.readdir(opts.themeDir);
+        const images = allFiles
+          .filter(f => IMAGE_EXTS.has(path.extname(f).toLowerCase()))
+          .sort((a, b) => a.localeCompare(b, "zh"));
+        const videos = allFiles
+          .filter(f => VIDEO_EXTS.has(path.extname(f).toLowerCase()))
+          .sort((a, b) => a.localeCompare(b, "zh"));
+        const result = { images, videos, current: theme.image };
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "no-cache",
+        });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    } else if (url.pathname.startsWith("/asset-image/")) {
+      const fileName = decodeURIComponent(url.pathname.slice("/asset-image/".length));
+      const safeName = path.basename(fileName);
+      const filePath = path.join(opts.themeDir, safeName);
+      try {
+        const data = await fs.readFile(filePath);
+        const ext = path.extname(safeName).toLowerCase();
+        const mime = mimeMap[ext] || "application/octet-stream";
+        res.writeHead(200, {
+          "Content-Type": mime,
+          "Content-Length": data.length,
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "public, max-age=3600",
+        });
+        res.end(data);
       } catch {
         res.writeHead(404);
         res.end("Not found");

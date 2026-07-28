@@ -1,53 +1,60 @@
 # Common functions for OpenCode Dream Skin
 
 function Find-OpenCodeInstall {
-  $candidates = @()
-  
+  $candidates = [System.Collections.ArrayList]@()
+
   $searchPaths = @(
-    "$env:LOCALAPPDATA\Programs\opencode\OpenCode.exe",
-    "$env:LOCALAPPDATA\opencode\OpenCode.exe",
-    "${env:ProgramFiles}\OpenCode\OpenCode.exe",
-    "${env:ProgramFiles(x86)}\OpenCode\OpenCode.exe",
-    "$env:USERPROFILE\scoop\apps\opencode\current\OpenCode.exe",
-    "$env:USERPROFILE\.cargo\bin\opencode.exe"
+    [string]"D:\OpenCode\OpenCode.exe",
+    [string]"$env:LOCALAPPDATA\Programs\opencode\OpenCode.exe",
+    [string]"$env:LOCALAPPDATA\opencode\OpenCode.exe",
+    [string]"${env:ProgramFiles}\OpenCode\OpenCode.exe",
+    [string]"${env:ProgramFiles(x86)}\OpenCode\OpenCode.exe",
+    [string]"$env:USERPROFILE\scoop\apps\opencode\current\OpenCode.exe",
+    [string]"$env:USERPROFILE\.cargo\bin\opencode.exe"
   )
-  
-  foreach ($path in $searchPaths) {
-    if (Test-Path $path -PathType Leaf) {
-      $candidates += $path
+
+  foreach ($p in $searchPaths) {
+    if (Test-Path $p -PathType Leaf) {
+      [void]$candidates.Add($p)
     }
   }
-  
+
   $pathCmd = Get-Command "OpenCode.exe" -ErrorAction SilentlyContinue
   if ($pathCmd) {
-    $candidates += $pathCmd.Source
+    [void]$candidates.Add($pathCmd.Source)
   }
-  
+
   $process = Get-Process "OpenCode" -ErrorAction SilentlyContinue
   if ($process -and $process.Path) {
-    $candidates += $process.Path
+    [void]$candidates.Add($process.Path)
   }
-  
+
   $uninstallKeys = @(
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\opencode",
     "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\opencode"
   )
-  
+
   foreach ($key in $uninstallKeys) {
     if (Test-Path $key) {
       $installLocation = Get-ItemProperty -Path $key -Name "InstallLocation" -ErrorAction SilentlyContinue
       if ($installLocation.InstallLocation) {
         $exePath = Join-Path $installLocation.InstallLocation "OpenCode.exe"
         if (Test-Path $exePath -PathType Leaf) {
-          $candidates += $exePath
+          [void]$candidates.Add($exePath)
         }
       }
     }
   }
-  
-  return $candidates | Where-Object {
-    $_ -and (Test-Path $_ -PathType Leaf)
-  } | Select-Object -Unique
+
+  $seen = @{}
+  $unique = [System.Collections.ArrayList]@()
+  foreach ($item in $candidates) {
+    if ($item -and (Test-Path $item -PathType Leaf) -and -not $seen.ContainsKey($item)) {
+      $seen[$item] = $true
+      [void]$unique.Add($item)
+    }
+  }
+  return @($unique)
 }
 
 function Start-OpenCodeApp {

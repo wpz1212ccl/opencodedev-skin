@@ -1,27 +1,7 @@
-# Dependencies
 node_modules/
-
-# Test results
-windows/tests/results/
-
-# Uploads
-windows/assets/uploads/
-
-# OS files
-Thumbs.db
-.DS_Store
-Desktop.ini
-
-# Editor
 .vscode/
-.idea/
-*.swp
-*.swo
-
-# Logs
+.DS_Store
 *.log
 
-# Large files (upload to GitHub separately, reference via URL)
-windows/assets/samples/demo.mp4
-windows/assets/video-bg.mp4
-windows/assets/video-bg.b64
+# 测试过程截图/报告
+tests/results/

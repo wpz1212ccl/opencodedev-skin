@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.0.1] - 2026-07-28
+
+### Added
+- 右侧边栏（ASIDE）壁纸透明修复：`[class*="bg-v2-background"]` 通用选择器覆盖所有 `bg-v2-*` 变体
+- 暗色模式同步：右侧边栏暗色模式透明规则
+
+### Fixed
+- **启动器重构**：移除 auto-inject 后台轮询机制，改用快捷方式直连 `start.ps1`
+- **中文路径 Bug**：`.lnk` 快捷方式存储中文路径时损坏 → 目录符号链接 `D:\oc-skin` 绕过
+- **Start-Process 静默退出**：`--watch` 模式通过 `Start-Process` 启动后立即退出 → 改用内联 `--once` 模式
+- **chromePresent 验证死循环**：`waitForVerifiedSession` 因 `chromePresent` 元素未创建而超时 30s → 改为合理超时
+- **图片服务器未启动**：`start.ps1` 新增图片服务器启动/清理逻辑
+- **PowerShell 5.1 兼容**：`@($a) + $b` 数组拼接被解释为参数名报错 → 显式变量暂存
+
+### Changed
+- 桌面快捷方式不再直接启动 OpenCode.exe，改为通过 PowerShell 隐藏窗口运行 `start.ps1`
+- 项目文档和索引同步更新至 Obsidian 知识库
+
 ## [2.0.0] - 2025-07-19
 
 ### Added

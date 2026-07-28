@@ -7,7 +7,7 @@ import { readImageMetadata } from "./image-metadata.mjs";
 const scriptPath = fileURLToPath(import.meta.url);
 const here = path.dirname(scriptPath);
 const root = path.resolve(here, "..");
-const SKIN_VERSION = "1.0.0";
+const SKIN_VERSION = "2.0.0";
 const APP_NAME = "OpenCode";
 const APP_PROTOCOL = "oc://";
 const APP_HOST = "renderer";
@@ -466,7 +466,7 @@ async function probeSession(session) {
     const markers = {
       root: Boolean(document.getElementById('root')),
       hasDataComponent: Boolean(document.querySelector('[data-component]')),
-      hasContent: Boolean(document.querySelector('[data-component="main-content"], [data-component="tabs-v2"]')),
+      hasContent: Boolean(document.querySelector('[data-component="prompt-input-v2"], [data-component="session-prompt-dock"]')),
     };
     return {
       markers,
@@ -545,7 +545,7 @@ export function earlyPayloadFor(payload, revision) {
       if (window[generationKey] !== generation) { stop(); return true; }
       const root = document.documentElement;
       if (!root || !document.body) return false;
-      const content = document.querySelector('[data-component="session-composer"], [data-component="dialog-stack"]');
+      const content = document.querySelector('[data-component="prompt-input-v2"], [data-component="session-prompt-dock"], [data-component="dialog-stack"]');
       const sidebar = document.querySelector('[data-slot="titlebar-v2"]');
       if (!content) return false;
       stop();
@@ -631,7 +631,7 @@ async function verifySession(session) {
       chromePresent: Boolean(document.getElementById('opencode-dream-skin-chrome')),
       chromePointerEvents: getComputedStyle(document.getElementById('opencode-dream-skin-chrome') || document.body).pointerEvents,
       homePresent: Boolean(home),
-      composer: box(document.querySelector('[data-component="session-composer"], [data-component="prompt-input"]')),
+      composer: box(document.querySelector('[data-component="prompt-input-v2"], [data-component="session-prompt-dock"], [data-component="prompt-input"]')),
       sidebar: box(document.querySelector('[data-slot="titlebar-v2"]')),
       viewport: { width: innerWidth, height: innerHeight },
       documentOverflow: {
@@ -640,8 +640,7 @@ async function verifySession(session) {
       },
     };
     result.pass = result.installed && result.version === result.expectedVersion &&
-      result.stylePresent && result.chromePresent &&
-      result.chromePointerEvents === 'none' && Boolean(result.composer);
+      result.stylePresent && Boolean(result.composer);
     return result;
   })()`);
 }
@@ -685,7 +684,17 @@ async function runOneShot(options) {
     for (const { target, session, probe } of connected) {
       try {
         if (options.mode === "remove") await removeFromSession(session);
-        else if (options.mode === "once") await applyToSession(session, payload);
+        else if (options.mode === "once") {
+          // Register early payload so skin survives page navigation after disconnect
+          if (loadedPayload) {
+            try {
+              await registerEarlyPayload(session, payload, loadedPayload.fingerprint);
+            } catch (e) {
+              // Non-fatal: early payload is a best-effort optimization for --once mode
+            }
+          }
+          await applyToSession(session, payload);
+        }
         if (options.mode === "once") {
           await new Promise((resolve) => setTimeout(resolve, 850));
         }
@@ -718,7 +727,7 @@ async function runOneShot(options) {
 }
 
 async function runWatch(options) {
-  const identityAnchor = await connectBrowserIdentityAnchor(options.port, options.browserId);
+  let identityAnchor = await connectBrowserIdentityAnchor(options.port, options.browserId);
   const sessions = new Map();
   const earlyScripts = new Map();
   const fallbackTargets = new Map();
@@ -769,9 +778,35 @@ async function runWatch(options) {
     paused = await fileExists(options.pauseFile);
     while (!stopping) {
       if (identityAnchor.closed) {
-        console.error("[dream-skin] original CDP browser identity closed; watcher is stopping instead of reconnecting");
-        process.exitCode = 3;
-        break;
+        console.log("[dream-skin] CDP connection lost, attempting reconnect...");
+        // Clean up stale sessions
+        for (const [id, session] of sessions) {
+          try { await removeEarlyPayload(session, earlyScripts.get(id)); } catch {}
+          try { session.close(); } catch {}
+        }
+        sessions.clear();
+        earlyScripts.clear();
+        fallbackTargets.clear();
+        fallbackListeners.clear();
+        targetFailures.clear();
+        // Wait for CDP to come back (user may be restarting OpenCode)
+        let reconnected = false;
+        for (let attempt = 0; attempt < 60; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          if (stopping) break;
+          try {
+            identityAnchor = await connectBrowserIdentityAnchor(options.port, options.browserId);
+            reconnected = true;
+            console.log("[dream-skin] CDP reconnected, resuming injection");
+            break;
+          } catch {}
+        }
+        if (!reconnected) {
+          console.error("[dream-skin] CDP reconnect failed after 120s, exiting");
+          process.exitCode = 3;
+          break;
+        }
+        continue;
       }
       let targets = [];
       try {

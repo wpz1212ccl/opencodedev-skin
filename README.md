@@ -16,10 +16,6 @@
 
 ## 效果展示
 
-### 视频演示
-
-https://github.com/user-attachments/assets/13c29838-195f-4208-b245-711b9af21b18
-
 ### 截图
 
 <div align="center">
@@ -28,9 +24,9 @@ https://github.com/user-attachments/assets/13c29838-195f-4208-b245-711b9af21b18
 
 ### 示例壁纸
 
-| 冷峻眼神 | 回眸少女 | 默认壁纸 |
+| 冷峻眼神 | 回眸少女 | 夏日休闲 |
 |:---:|:---:|:---:|
-| <img src="https://github.com/user-attachments/assets/1ba577b7-7e1b-4c3e-a31c-9a1dfd80657c" width="250"> | <img src="https://github.com/user-attachments/assets/4c93da48-b344-456d-8e90-e9620bee88a6" width="250"> | <img src="https://github.com/user-attachments/assets/c86c48e9-f183-4a06-8162-f3fc3c000446" width="250"> |
+| <img src="https://github.com/user-attachments/assets/1ba577b7-7e1b-4c3e-a31c-9a1dfd80657c" width="250"> | <img src="https://github.com/user-attachments/assets/4c93da48-b344-456d-8e90-e9620bee88a6" width="250"> | <img src="assets/samples/【哲风壁纸】休闲-卡通-夏日.png" width="250"> |
 
 ---
 
@@ -45,8 +41,7 @@ https://github.com/user-attachments/assets/13c29838-195f-4208-b245-711b9af21b18
 | **面板透明度** | 标题栏/内容区/输入框 独立控制 |
 | **暗色模式** | 跟随系统 or 手动切换 |
 | **设置持久化** | localStorage 保存，重启后恢复 |
-| **系统托盘** | 最小化到托盘，右键菜单控制 |
-| **开机自启** | VBScript 启动器 + auto-inject 后台监控 |
+| **快捷键操作** | Ctrl+S 切换设置面板 |
 | **主题预设** | 支持自定义主题，一键切换 |
 
 ---
@@ -61,42 +56,59 @@ https://github.com/user-attachments/assets/13c29838-195f-4208-b245-711b9af21b18
 
 ### 安装
 
-`ash
-git clone https://github.com/wpz1212ccl/opencodeev-skin.git
-cd opencodeev-skin
-`
+```bash
+git clone https://github.com/wpz1212ccl/opencodedev-skin.git
+cd opencodedev-skin
+```
 
-### 方式一：一键启动
+### 使用方式
 
-`powershell
+#### 方式一：通过桌面快捷方式（推荐）
+
+执行安装脚本配置快捷方式：
+
+```powershell
 cd windows
-.\scripts\start.ps1
-`
+.\scripts\setup-autostart.ps1
+```
 
-### 方式二：手动启动
+安装脚本会自动：
+1. 创建目录符号链接 `D:\oc-skin`（绕过 Windows 快捷方式中文路径编码问题）
+2. 修改桌面 OpenCode 快捷方式，指向启动器
 
-`ash
+之后**双击桌面 OpenCode 图标**即可自动注入皮肤。
+
+#### 方式二：直接运行启动脚本
+
+```powershell
+cd windows
+.\scripts\start.ps1 -OpenCodePath "D:\OpenCode\OpenCode.exe" -CdpPort 9335
+```
+
+启动脚本会自动：
+1. 启动图片服务器（HTTP 端口 18765）
+2. 启动 OpenCode（带 `--remote-debugging-port=9335`）
+3. 等待 CDP 就绪
+4. 注入皮肤
+
+关闭 OpenCode 后自动清理所有后台进程，零残留。
+
+#### 方式三：手动注入
+
+```bash
 # 1. 启动 OpenCode（带 CDP 调试端口）
 & "C:\Path\To\OpenCode.exe" --remote-debugging-port=9335
 
 # 2. 注入皮肤
 cd windows
-node scripts\injector.mjs --port 9335 --theme-dir .\assets
-`
-
-### 方式三：开机自启（推荐）
-
-`powershell
-cd windows
-.\scripts\setup-autostart.ps1 -Install
-.\scripts\auto-inject.ps1
-`
+node scripts\injector.mjs --port 9335 --auto-browser-id --theme-dir .\assets --once
+```
 
 ---
 
 ## 设置面板
 
-按 Ctrl+S 打开/关闭设置面板。
+按 **Ctrl+S** 打开/关闭设置面板。
 
 ### 背景调节
 
@@ -120,63 +132,127 @@ cd windows
 
 ### 背景管理
 
-- Change：选择本地图片或视频替换壁纸
-- Reset：只重置滑块参数，保留当前壁纸
+- **Change**：选择本地图片或视频替换壁纸
+- **Reset**：只重置滑块参数，保留当前壁纸
 
 ---
 
 ## 项目结构
 
-`
-opencodeev-skin/
+```
+opencodedev-skin/
 ├── README.md
 ├── LICENSE
 ├── CHANGELOG.md
-├── docs/
-│   └── ARCHITECTURE.md
+├── .gitignore
 └── windows/
     ├── assets/
-    │   ├── dream-skin.css
-    │   ├── renderer-inject.js
-    │   ├── theme.json
-    │   └── default-wallpaper.png
+    │   ├── dream-skin.css           # CSS 主题规则
+    │   ├── renderer-inject.js       # DOM 注入/清理逻辑
+    │   ├── theme.json               # 主题配置（默认壁纸路径）
+    │   ├── 【哲风壁纸】*.png         # 壁纸图片资源
+    │   └── video-bg.mp4             # 视频背景资源
     ├── scripts/
-    │   ├── injector.mjs
-    │   ├── image-server.mjs
-    │   ├── auto-inject.ps1
-    │   ├── start.ps1
-    │   └── ...
-    ├── presets/
-    └── tests/
-`
+    │   ├── injector.mjs             # CDP 连接器，核心注入逻辑
+    │   ├── image-server.mjs         # HTTP 图片服务器（端口 18765）
+    │   ├── image-metadata.mjs       # 图片元数据验证
+    │   ├── start.ps1                # 启动脚本（推荐入口）
+    │   ├── auto-inject.ps1          # 后台监控脚本（可选）
+    │   ├── setup-autostart.ps1      # 自启动配置
+    │   ├── common.ps1               # 通用函数
+    │   ├── theme.ps1                # 主题管理
+    │   ├── tray.ps1                 # 系统托盘
+    │   ├── install.ps1              # 安装脚本
+    │   ├── restore.ps1              # 恢复脚本
+    │   └── verify.ps1               # 验证脚本
+    └── presets/
+        └── preset-romantic-rose/
+            └── theme.json           # 预设主题
+```
 
 ---
 
 ## 工作原理
 
-`
-OpenCode 启动（--remote-debugging-port=9335）
+```
+双击桌面 OpenCode 图标
     ↓
-auto-inject.ps1 后台监控检测到 OpenCode
+start.ps1（PowerShell 隐藏窗口）
+    ├─ 启动 image-server.mjs（HTTP 端口 18765，提供壁纸）
+    ├─ 启动 OpenCode（--remote-debugging-port=9335）
+    ├─ 等待 CDP 就绪
+    └─ 运行 injector.mjs（--once 模式）
+         ↓
+         通过 WebSocket 连接 CDP
+         ↓
+         注入 CSS（dream-skin.css）+ JS（renderer-inject.js）
+         ↓
+         皮肤生效 ✅
     ↓
-启动 image-server.mjs（提供壁纸 HTTP 服务）
-    ↓
-启动 injector.mjs（通过 CDP 连接 OpenCode）
-    ↓
-注入 CSS + JS
-    ↓
-皮肤生效
-`
+（等待 OpenCode 关闭）
+    └─ 自动清理：关闭图片服务器 + injector
+         ↓
+         零残留进程
+```
 
 ---
 
 ## 技术栈
 
-- Node.js — CDP 连接 + HTTP 服务器
-- PowerShell — 系统集成
-- CSS Custom Properties — 实时参数控制
-- MutationObserver — 页面变化监听
-- Chrome DevTools Protocol — 浏览器远程控制
+- **Node.js** — CDP WebSocket 连接 + HTTP 图片服务器
+- **PowerShell** — 系统集成、进程管理
+- **CSS Custom Properties** — 实时参数控制（滑块 → CSS 变量）
+- **MutationObserver** — 页面导航监听
+- **Chrome DevTools Protocol** — 浏览器远程调试接口
+
+---
+
+## 项目状态
+
+| 功能 | 状态 |
+|------|------|
+| 全屏壁纸注入 | ✅ |
+| 毛玻璃 UI（backdrop-filter） | ✅ |
+| 暗色/亮色模式 | ✅ |
+| 皮肤控制面板（Ctrl+S） | ✅ |
+| 设置持久化（localStorage） | ✅ |
+| 首页壁纸显示 | ✅ |
+| 右侧边栏壁纸 | ✅ |
+| Change 换图/视频 | ✅ |
+| 性能优化（脏标记 + 空闲回调） | ✅ |
+| 启动器稳定性 | ✅ |
+| 视频背景（默认） | ❌ 实验性 |
+
+---
+
+## 常见问题
+
+### Q: 桌面快捷方式双击无反应？
+
+检查快捷方式属性，确保目标指向正确：
+
+```
+Target: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+Args: -WindowStyle Hidden -ExecutionPolicy Bypass -File "D:\oc-skin\opencode-skin\windows\scripts\start.ps1" -OpenCodePath "D:\OpenCode\OpenCode.exe" -CdpPort 9335 -NoTray
+```
+
+> **注意**：如果项目路径包含中文，必须使用目录符号链接（如 `D:\oc-skin`）避免 `.lnk` 编码问题。详见 `setup-autostart.ps1`。
+
+### Q: 皮肤没有生效？
+
+1. 检查 OpenCode 是否以 `--remote-debugging-port=9335` 启动
+2. 运行手动注入：`node scripts\injector.mjs --port 9335 --auto-browser-id --once`
+3. 如果首页壁纸不显示，参考 `renderer-inject.js` 中的首页选择器配置
+
+### Q: 如何更换壁纸？
+
+修改 `windows/assets/theme.json` 中的 `"image"` 字段，指向 assets 目录下的图片文件：
+
+```json
+{
+  "image": "你的壁纸文件名.png"
+}
+```
 
 ---
 
@@ -186,5 +262,5 @@ MIT License
 
 ## 致谢
 
-- Codex-Dream-Skin — 原始项目
-- OpenCode — 目标应用
+- [Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin) — 原始项目灵感
+- [OpenCode](https://opencode.ai/) — 目标应用

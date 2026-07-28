@@ -46,6 +46,8 @@
         var saved = JSON.parse(raw);
         var merged = {};
         for (var k in defaultSettings) merged[k] = saved[k] != null ? saved[k] : defaultSettings[k];
+        // Prevent opacity sliders from being 0 (makes UI invisible)
+        if (merged.containerAlpha < 5) merged.containerAlpha = defaultSettings.containerAlpha;
         return merged;
       }
     } catch (e) {}
@@ -166,7 +168,7 @@
   applySettings();
 
   // Detect page type
-  var home = document.querySelector('[data-component="session-new-design"], [data-component="home"], [data-component="welcome"], [data-testid*="home"]');
+  var home = document.querySelector('[data-component="session-new-design"], [data-component="home"], [data-component="welcome"], [data-testid*="home"], [data-component="session-list"], [data-component="session-manager"]');
   if (home) {
     var container = home.closest('[role="main"]') || home.parentElement;
     if (container) { container.classList.add(HOME_CLASS); container.classList.remove(TASK_CLASS); }
@@ -227,8 +229,10 @@
         '<div class="dream-section-title">Background Image</div>' +
         '<div class="dream-btn-row">' +
           '<button class="dream-btn" id="dream-change-img">Change</button>' +
+          '<button class="dream-btn" id="dream-browse-local">Browse...</button>' +
           '<button class="dream-btn" id="dream-reset">Reset</button>' +
         '</div>' +
+        '<div id="dream-gallery" class="dream-gallery"></div>' +
         '<input type="file" id="dream-file-input" accept="image/*,video/*">' +
       '</div>';
 
@@ -268,8 +272,11 @@
       var display = panel.querySelector('[data-display="' + key + '"]');
       var unit = key === "blur" ? "px" : "%";
       slider.addEventListener("input", function () {
-        settings[key] = parseFloat(slider.value);
-        display.textContent = slider.value + unit;
+        var val = parseFloat(slider.value);
+        // Prevent containerAlpha from reaching 0 (makes background invisible)
+        if (key === "containerAlpha" && val < 5) val = 5;
+        settings[key] = val;
+        display.textContent = val + unit;
         applySettings([key]);
         saveSettingsDebounced(settings);
       });
@@ -286,9 +293,70 @@
       saveSettings(settings);
     });
 
-    // Change image/video
-    var fileInput = panel.querySelector("#dream-file-input");
+    // Gallery — load images from image-server
+    var gallery = panel.querySelector("#dream-gallery");
+    var galleryLoaded = false;
+    var IMAGE_SERVER = "http://127.0.0.1:18765";
+
+    function loadGallery() {
+      if (galleryLoaded) return;
+      galleryLoaded = true;
+      fetch(IMAGE_SERVER + "/api/images")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var all = [];
+          (data.images || []).forEach(function (name) {
+            all.push({ name: name, url: IMAGE_SERVER + "/asset-image/" + encodeURIComponent(name), type: "image" });
+          });
+          (data.videos || []).forEach(function (name) {
+            all.push({ name: name, url: IMAGE_SERVER + "/asset-image/" + encodeURIComponent(name), type: "video" });
+          });
+          if (all.length === 0) {
+            gallery.innerHTML = '<div class="dream-gallery-empty">No images in assets folder</div>';
+            return;
+          }
+          var currentArt = settings.customArt || "";
+          var html = "";
+          all.forEach(function (item) {
+            var isActive = currentArt.indexOf(item.url) !== -1;
+            if (item.type === "image") {
+              html += '<div class="dream-gallery-item' + (isActive ? " active" : "") + '" data-url="' + item.url + '" title="' + item.name + '">' +
+                '<img src="' + item.url + '" loading="lazy">' +
+                '</div>';
+            } else {
+              html += '<div class="dream-gallery-item' + (isActive ? " active" : "") + '" data-url="' + item.url + '" title="' + item.name + '">' +
+                '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:10px;">' + item.name + '</div>' +
+                '</div>';
+            }
+          });
+          gallery.innerHTML = html;
+          // Bind click
+          gallery.querySelectorAll(".dream-gallery-item").forEach(function (el) {
+            el.addEventListener("click", function () {
+              var url = el.getAttribute("data-url");
+              settings.customArt = url;
+              saveSettings(settings);
+              applyCustomArt(url);
+              // Update active state
+              gallery.querySelectorAll(".dream-gallery-item").forEach(function (g) { g.classList.remove("active"); });
+              el.classList.add("active");
+            });
+          });
+        })
+        .catch(function () {
+          gallery.innerHTML = '<div class="dream-gallery-empty">Image server not running (start with --port 18765)</div>';
+        });
+    }
+
+    // Change — toggle gallery
     panel.querySelector("#dream-change-img").addEventListener("click", function () {
+      gallery.classList.toggle("open");
+      if (gallery.classList.contains("open")) loadGallery();
+    });
+
+    // Browse — open file picker for local files
+    var fileInput = panel.querySelector("#dream-file-input");
+    panel.querySelector("#dream-browse-local").addEventListener("click", function () {
       fileInput.click();
     });
     fileInput.addEventListener("change", function (e) {
@@ -360,6 +428,7 @@
   // Cleanup
   function cleanup() {
     if (observer) { observer.disconnect(); observer = null; }
+    if (permissionObserver) { permissionObserver.disconnect(); permissionObserver = null; }
     if (homePollTimer) { clearInterval(homePollTimer); homePollTimer = null; }
     root.classList.remove.apply(root.classList, ROOT_CLASSES);
     root.classList.remove(ACTIVE_HOME_CLASS);
@@ -397,11 +466,11 @@
     if (homeCheckTimer) return;
     homeCheckTimer = setTimeout(function () {
       homeCheckTimer = null;
-      var hasHome = !!document.querySelector('[data-component="session-new-design"], [data-component="home"], [data-component="welcome"]');
+      var hasHome = !!document.querySelector('[data-component="session-new-design"], [data-component="home"], [data-component="welcome"], [data-component="session-list"], [data-component="session-manager"]');
       if (hasHome !== lastHomeState) {
         lastHomeState = hasHome;
         if (hasHome) {
-          var el = document.querySelector('[data-component="session-new-design"]');
+          var el = document.querySelector('[data-component="session-new-design"], [data-component="session-list"], [data-component="session-manager"]');
           var c = el && (el.closest('[role="main"]') || el.parentElement);
           if (c) { c.classList.add(HOME_CLASS); c.classList.remove(TASK_CLASS); }
           var ml = document.getElementById("root") && document.getElementById("root").firstElementChild;
@@ -444,6 +513,45 @@
     if (!window.__OPENCODE_DREAM_SKIN_STATE__) { clearInterval(homePollTimer); return; }
     scheduleHomeCheck();
   }, 500);
+
+  // ── Permission request notification (popup + sound) ──
+  var permissionObserver = null;
+  function playNotifSound() {
+    try {
+      var actx = new (window.AudioContext || window.webkitAudioContext)();
+      var osc = actx.createOscillator();
+      var gain = actx.createGain();
+      osc.connect(gain);
+      gain.connect(actx.destination);
+      osc.frequency.setValueAtTime(660, actx.currentTime);
+      osc.frequency.setValueAtTime(880, actx.currentTime + 0.1);
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.12, actx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.3);
+      osc.start(actx.currentTime);
+      osc.stop(actx.currentTime + 0.3);
+    } catch (e) {}
+  }
+  function initPermissionNotifier() {
+    var ds = document.querySelector('[data-component="dialog-stack"]');
+    if (!ds) { setTimeout(initPermissionNotifier, 1000); return; }
+    var lastCount = ds.children.length;
+    permissionObserver = new MutationObserver(function () {
+      var curr = ds.children.length;
+      if (curr > lastCount) {
+        playNotifSound();
+        var nd = ds.children[curr - 1];
+        if (nd) {
+          nd.classList.remove("dream-notif-new");
+          void nd.offsetWidth;
+          nd.classList.add("dream-notif-new");
+        }
+      }
+      lastCount = curr;
+    });
+    permissionObserver.observe(ds, { childList: true });
+  }
+  initPermissionNotifier();
 
   // ── Visibility optimization: pause video when tab/window is hidden ──
   if (!window.__dreamVisListenerAdded) {

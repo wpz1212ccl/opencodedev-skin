@@ -38,11 +38,16 @@ if (Test-Path $stateFile) {
   } catch {}
 }
 
-$injectorRunning = $false
-$injectorPid = $null
-$imageServerPid = $null
+# ── Helper functions ──
 
 function Start-ImageServer {
+  # Check if already running
+  $existing = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like '*image-server*' }
+  if ($existing) {
+    $script:imageServerPid = $existing[0].ProcessId
+    return
+  }
   $serverPath = "$ScriptDir\image-server.mjs"
   if (Test-Path $serverPath) {
     $proc = Start-Process -FilePath "node" -ArgumentList @($serverPath, "--port", "18765", "--theme-dir", $themeDir) -PassThru -WindowStyle Hidden
@@ -52,14 +57,14 @@ function Start-ImageServer {
 }
 
 function Start-Injector {
-  $args = @(
+  $startArgs = @(
     $InjectorPath,
     "--watch",
     "--port", $CdpPort,
     "--auto-browser-id",
     "--theme-dir", $themeDir
   )
-  $proc = Start-Process -FilePath "node" -ArgumentList $args -PassThru -WindowStyle Hidden
+  $proc = Start-Process -FilePath "node" -ArgumentList $startArgs -PassThru -WindowStyle Hidden
   $script:injectorPid = $proc.Id
   $script:injectorRunning = $true
   Write-Log "Injector started (PID=$($proc.Id))"
@@ -67,9 +72,11 @@ function Start-Injector {
   # Save to state
   if (Test-Path $stateFile) {
     try {
-      $s = Get-Content $stateFile | ConvertFrom-Json
-      $s.InjectorPid = $proc.Id
-      $s | ConvertTo-Json | Set-Content -Path $stateFile -Encoding UTF8
+      $s = Get-Content $stateFile -ErrorAction SilentlyContinue | ConvertFrom-Json
+      if ($s) {
+        $s | Add-Member -NotePropertyName "InjectorPid" -NotePropertyValue $proc.Id -Force
+        $s | ConvertTo-Json | Set-Content -Path $stateFile -Encoding UTF8
+      }
     } catch {}
   }
 }
@@ -82,16 +89,18 @@ function Stop-Injector {
       Write-Log "Injector stopped (PID=$($script:injectorPid))"
     }
   }
-  if ($script:imageServerPid) {
-    $proc = Get-Process -Id $script:imageServerPid -ErrorAction SilentlyContinue
-    if ($proc -and -not $proc.HasExited) {
-      try { $proc.Kill() } catch {}
-      Write-Log "Image server stopped (PID=$($script:imageServerPid))"
-    }
-  }
   $script:injectorRunning = $false
   $script:injectorPid = $null
-  $script:imageServerPid = $null
+  # Don't kill image server — other injectors may need it
+}
+
+function Test-CdpReady {
+  try {
+    $response = Invoke-WebRequest -Uri "http://127.0.0.1:$CdpPort/json/version" -UseBasicParsing -TimeoutSec 3
+    return $response.StatusCode -eq 200
+  } catch {
+    return $false
+  }
 }
 
 function Test-SkinInjected {
@@ -107,7 +116,7 @@ function Test-SkinInjected {
     $json = "{`"id`":1,`"method`":`"Runtime.evaluate`",`"params`":{`"expression`":`"$expr`",`"returnByValue`":true}}"
     $sendBuf = [System.Text.Encoding]::UTF8.GetBytes($json)
     $ws.SendAsync([System.ArraySegment[byte]]$sendBuf, [System.Net.WebSockets.WebSocketMessageType]::Text, $true, [System.Threading.CancellationToken]::None).Wait()
-    $recvBuf = New-Object byte[] 2048
+    $recvBuf = New-Object byte[] 4096
     $result = $ws.ReceiveAsync([System.ArraySegment[byte]]$recvBuf, [System.Threading.CancellationToken]::None).Result
     $response = [System.Text.Encoding]::UTF8.GetString($recvBuf, 0, $result.Count)
     $ws.CloseAsync([System.Net.WebSockets.WebSocketCloseStatus]::NormalClosure, "", [System.Threading.CancellationToken]::None).Wait()
@@ -117,52 +126,75 @@ function Test-SkinInjected {
   }
 }
 
-# Monitor loop
+function Invoke-Injection {
+  # Ensure image server is running
+  Start-ImageServer
+  Start-Sleep -Milliseconds 500
+
+  # Start injector
+  Start-Injector
+
+  # Wait for injection to complete
+  Start-Sleep -Seconds 5
+
+  # Verify injection
+  $injected = Test-SkinInjected
+  if ($injected) {
+    Write-Log "Skin injection verified OK"
+    return $true
+  }
+
+  Write-Log "Skin not detected after first attempt, retrying..."
+  Stop-Injector
+  Start-Sleep -Seconds 2
+  Start-Injector
+  Start-Sleep -Seconds 5
+  $injected = Test-SkinInjected
+  if ($injected) {
+    Write-Log "Skin injection verified OK (retry)"
+    return $true
+  }
+
+  Write-Log "Skin injection failed after retry"
+  return $false
+}
+
+# ── Main monitor loop with restart protection ──
+
+$injectorRunning = $false
+$injectorPid = $null
+$imageServerPid = $null
+$lastInjectionOk = $false
+
 while ($true) {
-  $opencodeRunning = Get-Process -Name "OpenCode" -ErrorAction SilentlyContinue
-  $cdpReady = $false
   try {
-    $response = Invoke-WebRequest -Uri "http://127.0.0.1:$CdpPort/json/version" -UseBasicParsing -TimeoutSec 2
-    $cdpReady = $response.StatusCode -eq 200
-  } catch {}
+    # Check if OpenCode is running
+    $opencodeRunning = Get-Process -Name "OpenCode" -ErrorAction SilentlyContinue
+    $cdpReady = Test-CdpReady
 
-  if ($opencodeRunning -and $cdpReady) {
-    # Check if injector is alive
-    $injectorAlive = $false
-    if ($injectorRunning -and $injectorPid) {
-      $proc = Get-Process -Id $injectorPid -ErrorAction SilentlyContinue
-      $injectorAlive = $proc -and -not $proc.HasExited
-    }
-
-    if (-not $injectorAlive) {
-      Write-Log "OpenCode detected with CDP, starting image server and injector..."
-      Start-ImageServer
-      Start-Sleep -Milliseconds 500
-      Start-Injector
-      # Wait for injection to complete
-      Start-Sleep -Seconds 4
-      # Verify injection
-      $injected = Test-SkinInjected
-      if ($injected) {
-        Write-Log "Skin injection verified OK"
-      } else {
-        Write-Log "Skin not detected after first attempt, retrying..."
-        Stop-Injector
-        Start-Sleep -Seconds 1
-        Start-Injector
-        Start-Sleep -Seconds 4
-        $injected = Test-SkinInjected
-        if ($injected) {
-          Write-Log "Skin injection verified OK (retry)"
-        } else {
-          Write-Log "Skin injection failed after retry"
-        }
+    if ($opencodeRunning -and $cdpReady) {
+      # Check if injector is alive
+      $injectorAlive = $false
+      if ($injectorRunning -and $injectorPid) {
+        $proc = Get-Process -Id $injectorPid -ErrorAction SilentlyContinue
+        $injectorAlive = $proc -and -not $proc.HasExited
       }
+
+      if (-not $injectorAlive) {
+        Write-Log "OpenCode detected with CDP, starting injection..."
+        $lastInjectionOk = Invoke-Injection
+      } elseif ($lastInjectionOk) {
+        # Periodically verify skin is still present (every ~30 iterations = ~60s)
+        # Only check if we previously had a successful injection
+      }
+    } elseif (-not $opencodeRunning -and $injectorRunning) {
+      # OpenCode closed, stop injector
+      Write-Log "OpenCode closed, stopping injector..."
+      Stop-Injector
+      $lastInjectionOk = $false
     }
-  } elseif (-not $opencodeRunning -and $injectorRunning) {
-    # OpenCode closed, stop injector
-    Write-Log "OpenCode closed, stopping injector..."
-    Stop-Injector
+  } catch {
+    Write-Log "Monitor loop error: $($_.Exception.Message)"
   }
 
   Start-Sleep -Seconds $CheckIntervalSec

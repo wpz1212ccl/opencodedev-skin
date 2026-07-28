@@ -13,7 +13,19 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Split-Path -Parent $ScriptDir
 
+# Resolve junction D:\oc-skin to real path to prevent node hang
+# Must use Get-Item to resolve junction instead of hardcoding Chinese path
+# because start.ps1 is UTF-8 without BOM and PS reads it as ANSI (GBK)
+$junctionRoot = "D:\oc-skin"
+if ((Test-Path $junctionRoot) -and $ScriptDir -like "$junctionRoot*") {
+  $realRoot = (Get-Item -Path $junctionRoot -Force).Target
+  $ScriptDir = $ScriptDir.Replace($junctionRoot, $realRoot)
+  $RootDir = $RootDir.Replace($junctionRoot, $realRoot)
+}
+
 . "$ScriptDir\common.ps1"
+
+$effectiveThemeDir = if ($ThemeDir) { $ThemeDir } else { "$RootDir\assets" }
 
 if ($OpenCodePath) {
   if (-not (Test-Path $OpenCodePath)) {
@@ -26,6 +38,11 @@ if ($OpenCodePath) {
   }
   $OpenCodePath = $installs[0]
   Write-Host "Found OpenCode at: $OpenCodePath" -ForegroundColor Green
+}
+
+# Default OpenCode path if not specified
+if (-not $OpenCodePath) {
+  $OpenCodePath = "D:\OpenCode\OpenCode.exe"
 }
 
 if (Test-OpenCodePortOwner -Port $CdpPort) {
@@ -54,24 +71,32 @@ if (-not $ready) {
 
 Write-Host "CDP is ready on port $CdpPort" -ForegroundColor Green
 
-Write-Host "Injecting skin..." -ForegroundColor Cyan
+# ── Start Image Server (background) ──
+$imageServerPath = "$ScriptDir\image-server.mjs"
+$imageServerProcess = $null
+if (Test-Path $imageServerPath) {
+  Write-Host "Starting image server..." -ForegroundColor Cyan
+  $imageServerProcess = Start-Process -FilePath "node" -ArgumentList @($imageServerPath, "--port", "18765", "--theme-dir", $effectiveThemeDir) -PassThru -WindowStyle Hidden
+  Write-Host "Image server started (PID=$($imageServerProcess.Id))" -ForegroundColor Green
+}
 
-$effectiveThemeDir = if ($ThemeDir) { $ThemeDir } else { "$RootDir\assets" }
-$injectorArgs = @(
-  "--port", $CdpPort,
-  "--auto-browser-id",
-  "--theme-dir", $effectiveThemeDir
-)
-
-if ($Pause) { $injectorArgs += "--pause" }
-
+# ── Inject skin (run inline, not background) ──
 $injectorPath = "$ScriptDir\injector.mjs"
 if (-not (Test-Path $injectorPath)) {
   throw "Injector not found at: $injectorPath"
 }
 
-$injectorProcess = Start-Process -FilePath "node" -ArgumentList @($injectorPath) + $injectorArgs -PassThru -WindowStyle Hidden
-Write-Host "Injector started with PID: $($injectorProcess.Id)" -ForegroundColor Green
+Write-Host "Injecting skin..." -ForegroundColor Cyan
+$prevErrorAction = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+& node $injectorPath --port $CdpPort --auto-browser-id --theme-dir "$effectiveThemeDir" --once --timeout-ms 15000 *>&1 | Write-Host
+$ErrorActionPreference = $prevErrorAction
+
+if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 2) {
+  Write-Host "Skin injection completed" -ForegroundColor Green
+} else {
+  Write-Host "Skin injection may have failed (exit code: $LASTEXITCODE)" -ForegroundColor Yellow
+}
 
 $stateDir = "$env:LOCALAPPDATA\OpenCodeDreamSkin"
 if (-not (Test-Path $stateDir)) {
@@ -81,9 +106,9 @@ if (-not (Test-Path $stateDir)) {
 $state = @{
   OpenCodePath = $OpenCodePath
   CdpPort = $CdpPort
-  InjectorPid = $injectorProcess.Id
   ThemeDir = $effectiveThemeDir
   StartTime = (Get-Date).ToString("o")
+  Version = "2.0.0"
 }
 
 $state | ConvertTo-Json | Set-Content -Path "$stateDir\state.json" -Encoding UTF8
@@ -104,8 +129,10 @@ Write-Host "Press Ctrl+C to stop" -ForegroundColor Yellow
 $process.WaitForExit()
 Write-Host "OpenCode exited" -ForegroundColor Yellow
 
-if ($injectorProcess -and -not $injectorProcess.HasExited) {
-  $injectorProcess.Kill()
+# Kill image server
+if ($imageServerProcess -and -not $imageServerProcess.HasExited) {
+  $imageServerProcess.Kill()
+  Write-Host "Image server stopped" -ForegroundColor Yellow
 }
 
 if (Test-Path "$stateDir\state.json") {

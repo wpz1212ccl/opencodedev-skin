@@ -44,12 +44,34 @@ html.opencode-dream-skin header[data-slot="titlebar-v2"] [data-component="icon-b
   -webkit-app-region: no-drag;
 }
 
-/* Content panel */
-html.opencode-dream-skin main .bg-v2-background-bg-base {
+/* Content panel & sidebar */
+html.opencode-dream-skin main .bg-v2-background-bg-deep,
+html.opencode-dream-skin main .bg-v2-background-bg-base,
+html.opencode-dream-skin main [class*="bg-v2-background"] {
+  background-color: rgba(253, 251, 245, var(--dream-content-alpha)) !important;
+}
+
+/* Right sidebar (aside) — frame + bg-v2 classes */
+html.opencode-dream-skin aside,
+html.opencode-dream-skin aside [class*="bg-v2-background"] {
+  background-color: rgba(253, 251, 245, var(--dream-content-alpha)) !important;
+}
+
+/* Right sidebar — internal components (opaque white by default, no bg-v2 class) */
+html.opencode-dream-skin aside [data-component="tabs"],
+html.opencode-dream-skin aside [data-component="session-review-v2"],
+html.opencode-dream-skin aside [data-component="session-review-v2-sidebar-root"],
+html.opencode-dream-skin aside [data-slot="tabs-list"],
+html.opencode-dream-skin aside [data-slot="tabs-trigger-wrapper"] {
+  background-color: rgba(253, 251, 245, var(--dream-content-alpha)) !important;
+}
+html.opencode-dream-skin aside .session-review-v2-tabs-bar {
   background-color: rgba(253, 251, 245, var(--dream-content-alpha)) !important;
 }
 
 /* Composer */
+html.opencode-dream-skin [data-component="session-prompt-dock"],
+html.opencode-dream-skin [data-component="prompt-input-v2"],
 html.opencode-dream-skin [data-component="session-composer"] {
   background-color: rgba(253, 251, 245, var(--dream-composer-alpha)) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
@@ -120,7 +142,20 @@ html.opencode-dream-skin.dream-video-active #root > div:first-child {
 /* ====== DARK MODE ====== */
 html.opencode-dream-skin.dream-theme-dark #root > div:first-child { background-color: rgba(28, 28, 34, var(--dream-container-alpha)) !important; }
 html.opencode-dream-skin.dream-theme-dark header[data-slot="titlebar-v2"] { background-color: rgba(28, 28, 34, var(--dream-titlebar-alpha)) !important; border-bottom-color: rgba(255, 255, 255, 0.08) !important; }
-html.opencode-dream-skin.dream-theme-dark main .bg-v2-background-bg-base { background-color: rgba(30, 30, 36, var(--dream-content-alpha)) !important; }
+html.opencode-dream-skin.dream-theme-dark main .bg-v2-background-bg-deep,
+html.opencode-dream-skin.dream-theme-dark main .bg-v2-background-bg-base,
+html.opencode-dream-skin.dream-theme-dark main [class*="bg-v2-background"],
+html.opencode-dream-skin.dream-theme-dark aside,
+html.opencode-dream-skin.dream-theme-dark aside [class*="bg-v2-background"] { background-color: rgba(30, 30, 36, var(--dream-content-alpha)) !important; }
+/* Dark — sidebar internal components */
+html.opencode-dream-skin.dream-theme-dark aside [data-component="tabs"],
+html.opencode-dream-skin.dream-theme-dark aside [data-component="session-review-v2"],
+html.opencode-dream-skin.dream-theme-dark aside [data-component="session-review-v2-sidebar-root"],
+html.opencode-dream-skin.dream-theme-dark aside [data-slot="tabs-list"],
+html.opencode-dream-skin.dream-theme-dark aside [data-slot="tabs-trigger-wrapper"] { background-color: rgba(30, 30, 36, var(--dream-content-alpha)) !important; }
+html.opencode-dream-skin.dream-theme-dark aside .session-review-v2-tabs-bar { background-color: rgba(30, 30, 36, var(--dream-content-alpha)) !important; }
+html.opencode-dream-skin.dream-theme-dark [data-component="session-prompt-dock"],
+html.opencode-dream-skin.dream-theme-dark [data-component="prompt-input-v2"],
 html.opencode-dream-skin.dream-theme-dark [data-component="session-composer"] { background-color: rgba(30, 30, 36, var(--dream-composer-alpha)) !important; border-color: rgba(255, 255, 255, 0.08) !important; }
 html.opencode-dream-skin.dream-theme-dark [data-component="button-v2"],
 html.opencode-dream-skin.dream-theme-dark [data-component="icon-button-v2"],
@@ -150,6 +185,15 @@ html.dream-active-home #root > div > * {
 }
 html.dream-active-home.dream-theme-dark #root > div > * {
   background-color: rgba(28, 28, 34, 0.6) !important;
+}
+
+/* ====== PERMISSION REQUEST NOTIFICATION ====== */
+@keyframes dream-notif-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 106, 239, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(124, 106, 239, 0.7); }
+}
+html.opencode-dream-skin [data-component="dialog-stack"] > .dream-notif-new {
+  animation: dream-notif-pulse 0.5s ease-in-out 3 !important;
 }
 
 /* ====== SETTINGS PANEL ====== */
@@ -287,6 +331,48 @@ html.dream-active-home.dream-theme-dark #root > div > * {
 #dream-settings-panel .dream-btn:hover {
   background: rgba(255, 255, 255, 0.15) !important;
   color: #fff !important;
+}
+#dream-settings-panel .dream-gallery {
+  display: none !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  margin-top: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 4px !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+#dream-settings-panel .dream-gallery.open {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 4px !important;
+}
+#dream-settings-panel .dream-gallery-item {
+  position: relative !important;
+  aspect-ratio: 16/9 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  border: 2px solid transparent !important;
+  transition: border-color 0.15s !important;
+}
+#dream-settings-panel .dream-gallery-item:hover {
+  border-color: rgba(124, 106, 239, 0.6) !important;
+}
+#dream-settings-panel .dream-gallery-item.active {
+  border-color: #7c6aef !important;
+}
+#dream-settings-panel .dream-gallery-item img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+#dream-settings-panel .dream-gallery-empty {
+  grid-column: 1 / -1 !important;
+  text-align: center !important;
+  color: #888 !important;
+  font-size: 11px !important;
+  padding: 12px !important;
 }
 #dream-settings-panel .dream-toggle {
   position: relative !important;
