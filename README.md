@@ -63,13 +63,14 @@
 复制下面整段发给 Claude Code，它会自动完成环境检测和配置：
 
 ```prompt
-你是一个环境配置专家。请为 opencodedev-skin 项目执行以下操作：
+你是一个环境配置专家。请帮我配置 opencodedev-skin 项目：
 
-1. 检测操作系统（Windows / macOS），检查 Node.js >= 18、git
-2. 按系统执行：
-   - Windows：检查 .ps1 文件完整性 → 验证 theme.json 壁纸路径 → 查找 OpenCode.exe → 运行 verify.ps1
-   - macOS：chmod +x .sh 文件 → 检查 curl/lsof/pgrep/mdfind 是否可用 → 查找 OpenCode（/Applications、mdfind、which）→ 运行 run-tests.sh --unit + --env
-3. 输出报告：OS 版本 / Node 版本 / OpenCode 路径（找到 ✅ / 未找到 ⚠️）/ 各项检查结果表 / 下一步建议
+1. 克隆项目：git clone https://github.com/wpz1212ccl/opencodedev-skin.git && cd opencodedev-skin
+2. 检测操作系统（Windows / macOS），检查 Node.js >= 18、git
+3. 按系统执行：
+   - Windows：检查 .ps1 完整性 → 验证 theme.json 壁纸路径 → 查找 OpenCode.exe → 运行 verify.ps1
+   - macOS：chmod +x .sh → 检查 curl/lsof/pgrep/mdfind → 查找 OpenCode（/Applications、mdfind、which）→ 运行 run-tests.sh --unit + --env
+4. 输出配置报告：OS 版本 / Node 版本 / OpenCode 路径 ✅ 或 ⚠️ / 检查结果表 / 下一步建议
 ```
 
 ### 安装
