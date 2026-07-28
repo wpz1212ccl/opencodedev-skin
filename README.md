@@ -60,40 +60,17 @@
 
 ### 🤖 AI 一键配置
 
-将下面整段复制给 Claude Code，它会自动检测系统、安装依赖、验证环境：
+复制下面整段发给 Claude Code，它会自动完成环境检测和配置：
 
-#start-prompt
-你是一个环境配置专家。请为 opencodedev-skin 项目执行以下完整配置流程：
+```prompt
+你是一个环境配置专家。请为 opencodedev-skin 项目执行以下操作：
 
-**第一步：检测环境**
-- 判断当前是 Windows 还是 macOS
-- 检查 Node.js >= 18（`node --version`）
-- 检查 git（`git --version`）
-
-**第二步：根据系统执行对应操作**
-
-*如果检测到 Windows：*
-- 确保 `windows/scripts/` 下所有 .ps1 文件存在
-- 检查 `windows/assets/theme.json` 中的壁纸路径指向一个真实文件
-- 查找 OpenCode 安装路径：`Get-Command OpenCode.exe`，如果找不到则在常见路径下搜索
-- 运行验证：`powershell -ExecutionPolicy Bypass -File windows\scripts\verify.ps1`
-
-*如果检测到 macOS：*
-- 确保 `macos/scripts/` 下所有 .sh 文件存在且可执行（`chmod +x macos/scripts/*.sh macos/tests/*.sh`）
-- 检查必需工具：`curl`、`lsof`、`pgrep`、`mdfind`
-- 查找 OpenCode：先找 `/Applications/OpenCode.app`，再用 `mdfind` 和 `which opencode`
-- 运行单元测试：`bash macos/tests/run-tests.sh --unit`
-- 运行环境检查：`bash macos/tests/run-tests.sh --env`
-
-**第三步：输出配置报告**
-- 操作系统 + 版本
-- Node.js 版本
-- OpenCode 安装路径（找到则显示路径，未找到则提示用户手动指定）
-- 所有检查项的结果表（✅ 通过 / ❌ 失败 / ⚠️ 跳过）
-- 下一步操作建议
-#end-prompt
-
-> 使用方式：打开 Claude Code，粘贴上述提示（从 `#start-prompt` 到 `#end-prompt`），回车即可。
+1. 检测操作系统（Windows / macOS），检查 Node.js >= 18、git
+2. 按系统执行：
+   - Windows：检查 .ps1 文件完整性 → 验证 theme.json 壁纸路径 → 查找 OpenCode.exe → 运行 verify.ps1
+   - macOS：chmod +x .sh 文件 → 检查 curl/lsof/pgrep/mdfind 是否可用 → 查找 OpenCode（/Applications、mdfind、which）→ 运行 run-tests.sh --unit + --env
+3. 输出报告：OS 版本 / Node 版本 / OpenCode 路径（找到 ✅ / 未找到 ⚠️）/ 各项检查结果表 / 下一步建议
+```
 
 ### 安装
 
