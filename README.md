@@ -16,17 +16,15 @@
 
 ## 效果展示
 
-### 截图
-
 <div align="center">
-<img src="https://github.com/user-attachments/assets/564e4782-3b48-4e0c-b60e-6e003d5d625a" width="800" alt="OpenCode-Skin 效果截图">
+
+|  |  |
+|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/39821dea-bace-4d70-b1b8-2578d31e0b5f" width="400" alt="demo_imgs1"> | <img src="https://github.com/user-attachments/assets/6f87da88-27a1-4185-aac8-f2f4c975cfa1" width="400" alt="demo_imgs2"> |
+| <img src="https://github.com/user-attachments/assets/9cec6074-98cb-4dc9-9c97-485da02766e3" width="400" alt="demo_imgs3"> | <img src="https://github.com/user-attachments/assets/8d38e11b-27eb-413b-b66b-ab9e49f7803d" width="400" alt="demo_imgs4"> |
+| <img src="https://github.com/user-attachments/assets/1df73440-17a2-4da7-b6d0-7097f470d2f4" width="400" alt="demo_imgs5"> | <img src="https://github.com/user-attachments/assets/1f4cf470-3aa3-460f-8bee-1f7d9cecb85a" width="400" alt="demo_imgs6"> |
+
 </div>
-
-### 示例壁纸
-
-| 冷峻眼神 | 回眸少女 | 夏日休闲 |
-|:---:|:---:|:---:|
-| <img src="https://github.com/user-attachments/assets/1ba577b7-7e1b-4c3e-a31c-9a1dfd80657c" width="250"> | <img src="https://github.com/user-attachments/assets/4c93da48-b344-456d-8e90-e9620bee88a6" width="250"> | <img src="assets/samples/【哲风壁纸】休闲-卡通-夏日.png" width="250"> |
 
 ---
 
