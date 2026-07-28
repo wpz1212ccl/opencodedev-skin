@@ -24,6 +24,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 MACOS_SCRIPTS="$PROJECT_ROOT/scripts"
 COMMON_SH="$MACOS_SCRIPTS/common.sh"
 START_SH="$MACOS_SCRIPTS/start.sh"
@@ -675,7 +676,11 @@ test_env_is_macos() {
 test_env_has_bash() {
   local bash_version
   bash_version="$(bash --version | head -1)"
-  assert_contains "$bash_version" "bash" "bash is installed"
+  if echo "$bash_version" | grep -q "bash"; then
+    pass "bash is installed: $bash_version"
+  else
+    fail "bash is installed: unexpected version '$bash_version'"
+  fi
 }
 
 test_env_has_curl() {
@@ -765,23 +770,20 @@ test_file_start_sh_executable() {
 }
 
 test_file_injector_accessible() {
-  local injector="$PROJECT_ROOT/../windows/scripts/injector.mjs"
+  local injector="$REPO_ROOT/windows/scripts/injector.mjs"
   if [[ -f "$injector" ]]; then
     pass "File: injector.mjs accessible at $injector"
   else
-    warn "File: injector.mjs not at expected path $injector"
-    # Try relative from PROJECT_ROOT
-    local alt_injector="$PROJECT_ROOT/../windows/scripts/injector.mjs"
-    if [[ -f "$alt_injector" ]]; then
-      pass "File: injector.mjs found at $alt_injector"
-    fi
+    fail "File: injector.mjs not found at $injector"
   fi
 }
 
 test_file_theme_json_accessible() {
-  local theme_json="$PROJECT_ROOT/../windows/assets/theme.json"
+  local theme_json="$REPO_ROOT/windows/assets/theme.json"
   if [[ -f "$theme_json" ]]; then
     pass "File: theme.json accessible at $theme_json"
+  else
+    fail "File: theme.json not found at $theme_json"
   fi
 }
 
@@ -810,9 +812,9 @@ test_system_find_opencode() {
     local first_path
     first_path="$(echo "$result" | head -1)"
     if [[ -x "$first_path" ]]; then
-      echo -e "${GREEN}  PASS${NC} System: found OpenCode at $first_path"
+      pass "System: found OpenCode at $first_path"
     else
-      echo -e "${YELLOW}  SKIP${NC} System: found paths but none executable"
+      skip "System: found paths but none executable"
     fi
   else
     skip "System: OpenCode not installed"
@@ -836,18 +838,18 @@ test_system_cdp_port_free() {
   set -e
 
   if [[ -z "$pid" ]]; then
-    echo -e "${GREEN}  PASS${NC} System: CDP port 9335 is free"
+    pass "System: CDP port 9335 is free"
   else
     local proc_name
     proc_name="$(ps -p "$pid" -o comm= 2>/dev/null || echo "unknown")"
-    echo -e "${YELLOW}  SKIP${NC} System: CDP port 9335 is in use by $proc_name (PID: $pid)"
+    skip "System: CDP port 9335 is in use by $proc_name (PID: $pid)"
   fi
 }
 
 test_system_injector_syntax() {
-  local injector="$PROJECT_ROOT/../windows/scripts/injector.mjs"
+  local injector="$REPO_ROOT/windows/scripts/injector.mjs"
   if [[ ! -f "$injector" ]]; then
-    skip "System: injector.mjs not found"
+    skip "System: injector.mjs not found at $injector"
     return
   fi
 
@@ -863,9 +865,9 @@ test_system_injector_syntax() {
   set -e
 
   if [[ $rc -eq 0 ]]; then
-    echo -e "${GREEN}  PASS${NC} System: injector.mjs syntax is valid"
+    pass "System: injector.mjs syntax is valid"
   else
-    echo -e "${RED}  FAIL${NC} System: injector.mjs syntax error: $node_check"
+    fail "System: injector.mjs syntax error: $node_check"
   fi
 }
 
@@ -963,7 +965,6 @@ run_tests_for_category() {
       continue
     fi
     if [[ "$filter_category" == "all" ]]; then
-      # Skip SYSTEM tests unless --all or --system
       if [[ "$category" == "SYSTEM" && "$TEST_MODE" != "all" && "$TEST_MODE" != "system" ]]; then
         continue
       fi
@@ -977,20 +978,35 @@ run_tests_for_category() {
     # Create fresh mock dir for each test
     setup_mock_dir
 
-    # Run in subshell to isolate
+    # Snapshot counters before test
+    local pre_fail=$TESTS_FAILED
+    local pre_pass=$TESTS_PASSED
+    local pre_skip=$TESTS_SKIPPED
+
+    # Run WITHOUT subshell so pass()/fail()/skip() update real globals
+    # Use set +e to prevent assert failures from aborting the script
+    local old_opts="$-"
     set +e
-    (
-      set -euo pipefail
-      "$func"
-    )
+    "$func"
     local test_rc=$?
-    set -e
+    # Restore original set -e state
+    if [[ "$old_opts" == *e* ]]; then set -e; fi
 
     cleanup_mock_dir
 
-    if [[ $test_rc -ne 0 ]]; then
+    # Determine result based on counter changes and exit code
+    if [[ $TESTS_FAILED -gt $pre_fail ]]; then
+      : # fail() was already called inside test, counter updated
+    elif [[ $TESTS_SKIPPED -gt $pre_skip ]]; then
+      : # skip() was already called inside test, counter updated
+    elif [[ $TESTS_PASSED -gt $pre_pass ]]; then
+      : # pass() was already called inside test, counter updated
+    elif [[ $test_rc -eq 0 ]]; then
+      TESTS_PASSED=$((TESTS_PASSED + 1))
+      echo -e "${GREEN}  PASS${NC} $name"
+    else
       TESTS_FAILED=$((TESTS_FAILED + 1))
-      echo -e "${RED}  FAIL${NC} $name (unexpected error)"
+      echo -e "${RED}  FAIL${NC} $name (uncaught error, exit=$test_rc)"
     fi
   done
 
