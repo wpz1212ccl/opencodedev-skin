@@ -291,3 +291,4 @@ MIT License
 
 - [Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin) — 原始项目灵感
 - [OpenCode](https://opencode.ai/) — 目标应用
+- [@Konata9](https://github.com/Konata9) — macOS Phase 1 支持贡献者
