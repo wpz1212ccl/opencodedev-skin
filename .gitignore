@@ -5,3 +5,6 @@ node_modules/
 
 # 测试过程截图/报告
 tests/results/
+
+# 演示视频（通过 Issue 托管）
+docs/videos/
