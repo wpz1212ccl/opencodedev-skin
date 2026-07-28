@@ -1,0 +1,23 @@
+# Shell scripts must use LF line endings for macOS/Linux compatibility
+*.sh text eol=lf
+
+# PowerShell scripts use CRLF (Windows standard)
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+
+# Source code
+*.mjs text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary files
+*.png binary
+*.mp4 binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
