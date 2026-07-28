@@ -28,9 +28,11 @@
 
 ### 视频演示
 
-<video src="https://raw.githubusercontent.com/wpz1212ccl/opencodedev-skin/main/docs/videos/demo1.mp4" controls width="800"></video>
+点击缩略图观看完整演示视频：
 
-<video src="https://raw.githubusercontent.com/wpz1212ccl/opencodedev-skin/main/docs/videos/demo2.mp4" controls width="800"></video>
+| | |
+|:---:|:---:|
+| <a href="https://github.com/wpz1212ccl/opencodedev-skin/blob/main/docs/videos/demo1.mp4"><img src="https://github.com/user-attachments/assets/39821dea-bace-4d70-b1b8-2578d31e0b5f" width="400" alt="点击观看演示视频 1"></a> | <a href="https://github.com/wpz1212ccl/opencodedev-skin/blob/main/docs/videos/demo2.mp4"><img src="https://github.com/user-attachments/assets/6f87da88-27a1-4185-aac8-f2f4c975cfa1" width="400" alt="点击观看演示视频 2"></a> |
 
 ---
 
