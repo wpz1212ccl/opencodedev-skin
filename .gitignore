@@ -1,10 +1,4 @@
-node_modules/
-.vscode/
-.DS_Store
+# 测试产物
+windows/tests/.mock-test/perf-report/
+windows/tests/results/
 *.log
-
-# 测试过程截图/报告
-tests/results/
-
-# 演示视频（通过 Issue 托管）
-docs/videos/

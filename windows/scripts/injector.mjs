@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readImageMetadata } from "./image-metadata.mjs";
+import { readImageMetadata, detectImageMime } from "./image-metadata.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const here = path.dirname(scriptPath);
@@ -414,25 +414,34 @@ async function loadPayload(themeDir = path.join(root, "assets"), candidateTheme 
   const isVideo = videoExtensions.includes(extension);
 
   let artDataUrl;
+  // Check if image server is available (much faster than base64)
+  const imageServerPort = 18765;
+  let imageServerAvailable = false;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 500);
+    const res = await fetch(`http://127.0.0.1:${imageServerPort}/skin-image`, { method: "HEAD", signal: controller.signal });
+    clearTimeout(timeout);
+    imageServerAvailable = res.ok;
+  } catch {}
   if (isVideo) {
-    artDataUrl = `http://localhost:8765/video-bg.mp4`;
-  } else {
-    // Check if image server is available (much faster than base64)
-    const imageServerPort = 18765;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 500);
-      const res = await fetch(`http://127.0.0.1:${imageServerPort}/skin-image`, { method: "HEAD", signal: controller.signal });
-      clearTimeout(timeout);
-      if (res.ok) {
-        artDataUrl = `http://127.0.0.1:${imageServerPort}/skin-image`;
-      }
-    } catch {}
-    if (!artDataUrl) {
-      const mime = extension === ".jpg" || extension === ".jpeg" ? "image/jpeg"
-        : extension === ".webp" ? "image/webp" : "image/png";
-      artDataUrl = `data:${mime};base64,${loadedTheme.imageBytes.toString("base64")}`;
+    // Video backgrounds stream from the image server's /skin-image endpoint.
+    // Inlining 100MB+ of base64 in the payload would blow the renderer budget, so
+    // we refuse to fall back to data: URLs for video. The image server must be running.
+    if (imageServerAvailable) {
+      artDataUrl = `http://127.0.0.1:${imageServerPort}/skin-image`;
+    } else {
+      throw new Error(
+        `Video theme "${loadedTheme.theme?.image ?? loadedTheme.image}" requires the image server on port ${imageServerPort} to be running.`,
+      );
     }
+  } else if (imageServerAvailable) {
+    artDataUrl = `http://127.0.0.1:${imageServerPort}/skin-image`;
+  } else {
+    // Use magic bytes to detect the actual MIME type rather than trusting the file extension.
+    // This tolerates theme assets that ship with a mismatched extension (e.g. JPEG saved as .png).
+    const mime = detectImageMime(loadedTheme.imageBytes, extension) ?? "image/png";
+    artDataUrl = `data:${mime};base64,${loadedTheme.imageBytes.toString("base64")}`;
   }
 
   const payload = template
@@ -769,8 +778,24 @@ async function runWatch(options) {
       }, 250);
     });
   };
-  process.on("SIGINT", stop);
-  process.on("SIGTERM", stop);
+  // Cooperative abort signal so we can break out of long sleeps immediately
+  // when the user hits Ctrl+C instead of waiting up to two seconds.
+  const abortController = new AbortController();
+  const requestAbort = () => {
+    if (!abortController.signal.aborted) abortController.abort();
+  };
+  process.on("SIGINT", () => { stop(); requestAbort(); });
+  process.on("SIGTERM", () => { stop(); requestAbort(); });
+  function interruptibleSleep(ms) {
+    return new Promise((resolve) => {
+      if (abortController.signal.aborted) return resolve();
+      const timer = setTimeout(resolve, ms);
+      abortController.signal.addEventListener("abort", () => {
+        clearTimeout(timer);
+        resolve();
+      }, { once: true });
+    });
+  }
 
   try {
     loadedPayload = await loadPayload(options.themeDir);
@@ -789,11 +814,12 @@ async function runWatch(options) {
         fallbackTargets.clear();
         fallbackListeners.clear();
         targetFailures.clear();
-        // Wait for CDP to come back (user may be restarting OpenCode)
+        // Wait for CDP to come back (user may be restarting OpenCode).
+        // Use interruptibleSleep so SIGINT/SIGTERM can break the loop immediately.
         let reconnected = false;
         for (let attempt = 0; attempt < 60; attempt++) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          if (stopping) break;
+          await interruptibleSleep(2000);
+          if (stopping || abortController.signal.aborted) break;
           try {
             identityAnchor = await connectBrowserIdentityAnchor(options.port, options.browserId);
             reconnected = true;
@@ -819,7 +845,8 @@ async function runWatch(options) {
           console.error(`[dream-skin] ${new Date().toISOString()} ${error.message}; retrying in ${retryMs}ms`);
           lastListErrorLogAt = Date.now();
         }
-        await new Promise((resolve) => setTimeout(resolve, retryMs));
+        await interruptibleSleep(retryMs);
+        if (stopping || abortController.signal.aborted) break;
         continue;
       }
 
@@ -977,7 +1004,8 @@ async function runWatch(options) {
           rejectTarget(target, 2500, error);
         }
       }
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await interruptibleSleep(1200);
+      if (stopping || abortController.signal.aborted) break;
     }
   } finally {
     identityAnchor.close();

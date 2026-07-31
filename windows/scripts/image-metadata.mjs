@@ -8,6 +8,31 @@ const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0
 const WEBP_SIGNATURE = Buffer.from([0x52, 0x49, 0x46, 0x46]); // "RIFF"
 const WEBP_FORMAT_SIGNATURE = Buffer.from([0x57, 0x45, 0x42, 0x50]); // "WEBP"
 
+const IMAGE_FORMATS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+
+function detectImageFormat(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+  if (buffer.subarray(0, 3).equals(JPEG_SIGNATURE)) return "jpeg";
+  if (buffer.subarray(0, 8).equals(PNG_SIGNATURE)) return "png";
+  if (buffer.subarray(0, 4).equals(WEBP_SIGNATURE) &&
+      buffer.subarray(8, 12).equals(WEBP_FORMAT_SIGNATURE)) return "webp";
+  return null;
+}
+
+export function detectImageMime(buffer, extension = null) {
+  const format = detectImageFormat(buffer);
+  if (format === "jpeg") return "image/jpeg";
+  if (format === "png") return "image/png";
+  if (format === "webp") return "image/webp";
+  if (extension && IMAGE_FORMATS.has(extension.toLowerCase())) {
+    const ext = extension.toLowerCase();
+    if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+    if (ext === ".png") return "image/png";
+    if (ext === ".webp") return "image/webp";
+  }
+  return null;
+}
+
 function readUint16BE(buffer, offset) {
   return (buffer[offset] << 8) | buffer[offset + 1];
 }
@@ -90,8 +115,12 @@ function parseWebp(buffer) {
 
 export function readImageMetadata(buffer, extension) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 1) return null;
+  const format = detectImageFormat(buffer);
   let result = null;
-  if (extension === ".jpg" || extension === ".jpeg") result = parseJpeg(buffer);
+  if (format === "jpeg") result = parseJpeg(buffer);
+  else if (format === "png") result = parsePng(buffer);
+  else if (format === "webp") result = parseWebp(buffer);
+  else if (extension === ".jpg" || extension === ".jpeg") result = parseJpeg(buffer);
   else if (extension === ".png") result = parsePng(buffer);
   else if (extension === ".webp") result = parseWebp(buffer);
   else return null;

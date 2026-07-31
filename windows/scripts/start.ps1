@@ -57,7 +57,6 @@ if (Test-OpenCodePortOwner -Port $CdpPort) {
 Write-Host "Starting OpenCode..." -ForegroundColor Cyan
 
 $arguments = @("--remote-debugging-port=$CdpPort")
-if ($ThemeDir) { $arguments += "--theme-dir=$ThemeDir" }
 
 $process = Start-OpenCodeApp -ExecutablePath $OpenCodePath -Arguments $arguments -PassThru
 Write-Host "OpenCode started with PID: $($process.Id)" -ForegroundColor Green
