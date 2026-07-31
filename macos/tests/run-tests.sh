@@ -182,6 +182,41 @@ mock_path() {
   echo "$MOCK_DIR:$PATH"
 }
 
+prepare_isolated_common_sh() {
+  local isolated_common="$MOCK_DIR/common-isolated.sh"
+  local fake_app_root="$MOCK_DIR/fake-applications"
+  mkdir -p "$fake_app_root"
+
+  sed "s|/Applications/OpenCode.app/Contents/MacOS/OpenCode|$fake_app_root/OpenCode.app/Contents/MacOS/OpenCode|g" \
+    "$COMMON_SH" > "$isolated_common"
+
+  echo "$isolated_common"
+}
+
+run_isolated_find_opencode_install() {
+  local isolated_common="$1"
+  local isolated_home="$2"
+  local output_file="$MOCK_DIR/find-output.txt"
+  local rc_file="$MOCK_DIR/find-rc.txt"
+  local isolated_path="$MOCK_DIR:/usr/bin:/bin:/usr/sbin:/sbin"
+
+  PATH="$isolated_path" HOME="$isolated_home" bash -c "
+    set +e
+    source \"$isolated_common\"
+    output=\$(find_opencode_install 2>/dev/null)
+    rc=\$?
+    printf '%s' \"\$output\" > \"$output_file\"
+    printf '%s' \"\$rc\" > \"$rc_file\"
+    exit 0
+  "
+
+  local rc
+  local output
+  rc="$(cat "$rc_file")"
+  output="$(cat "$output_file")"
+  printf '%s\n%s' "$rc" "$output"
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # TEST: Syntax checks
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -219,29 +254,27 @@ test_find_opencode_install_standard_path() {
 }
 
 test_find_opencode_install_empty() {
-  # When no OpenCode exists, should return non-zero
-  # We mock mdfind and pgrep to return nothing
+  # When no OpenCode exists, should return non-zero.
+  # Run in an isolated shell so a real /Applications/OpenCode.app does not leak in.
   mock_command "mdfind" 'exit 0'
   mock_command "pgrep" 'exit 1'
-  mock_command "locate" 'exit 1'
-  mock_command "command" '[[ "$1" == "-v" ]] && exit 1; [[ "$1" == "mdfind" ]] && exit 0; exit 1'
+  local isolated_home="$MOCK_DIR/home-empty"
+  mkdir -p "$isolated_home"
+  local isolated_common
+  isolated_common="$(prepare_isolated_common_sh)"
 
-  local old_path="$PATH"
-  export PATH="$(mock_path)"
-  set +e
   local result
-  result="$(find_opencode_install 2>/dev/null)"
-  local rc=$?
-  set -e
-  export PATH="$old_path"
+  result="$(run_isolated_find_opencode_install "$isolated_common" "$isolated_home")"
+  local rc
+  rc="$(printf '%s\n' "$result" | head -1)"
+  local output
+  output="$(printf '%s\n' "$result" | tail -n +2)"
 
   assert_eq 1 $rc "find_opencode_install: returns 1 when nothing found"
-  assert_eq "" "$result" "find_opencode_install: empty output when nothing found"
+  assert_eq "" "$output" "find_opencode_install: empty output when nothing found"
 
   unmock_command "mdfind"
   unmock_command "pgrep"
-  unmock_command "locate"
-  unmock_command "command"
 }
 
 test_find_opencode_install_deduplicates() {
