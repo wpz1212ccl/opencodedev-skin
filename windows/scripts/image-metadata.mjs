@@ -1,10 +1,10 @@
-import { createReadStream } from "node:fs";
-
 const MAX_DIMENSION = 16384;
 const MAX_PIXELS = 50_000_000;
 
 const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff]);
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const GIF87A_SIGNATURE = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x37, 0x61]);
+const GIF89A_SIGNATURE = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
 const WEBP_SIGNATURE = Buffer.from([0x52, 0x49, 0x46, 0x46]); // "RIFF"
 const WEBP_FORMAT_SIGNATURE = Buffer.from([0x57, 0x45, 0x42, 0x50]); // "WEBP"
 
@@ -88,12 +88,37 @@ function parseWebp(buffer) {
   return null;
 }
 
+export function detectImageExtension(buffer, fallbackExtension = "") {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 3) return fallbackExtension.toLowerCase();
+  if (buffer.length >= 8 && buffer.subarray(0, 8).equals(PNG_SIGNATURE)) return ".png";
+  if (buffer.subarray(0, 3).equals(JPEG_SIGNATURE)) return ".jpg";
+  if (buffer.length >= 12 &&
+      buffer.subarray(0, 4).equals(WEBP_SIGNATURE) &&
+      buffer.subarray(8, 12).equals(WEBP_FORMAT_SIGNATURE)) return ".webp";
+  if (buffer.length >= 6 &&
+      (buffer.subarray(0, 6).equals(GIF87A_SIGNATURE) || buffer.subarray(0, 6).equals(GIF89A_SIGNATURE))) {
+    return ".gif";
+  }
+  return fallbackExtension.toLowerCase();
+}
+
+export function detectImageMimeType(buffer, fallbackExtension = "") {
+  const extension = detectImageExtension(buffer, fallbackExtension);
+  if (extension === ".png") return "image/png";
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".webp") return "image/webp";
+  if (extension === ".gif") return "image/gif";
+  if (fallbackExtension.toLowerCase() === ".svg") return "image/svg+xml";
+  return "application/octet-stream";
+}
+
 export function readImageMetadata(buffer, extension) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 1) return null;
+  const effectiveExtension = detectImageExtension(buffer, extension);
   let result = null;
-  if (extension === ".jpg" || extension === ".jpeg") result = parseJpeg(buffer);
-  else if (extension === ".png") result = parsePng(buffer);
-  else if (extension === ".webp") result = parseWebp(buffer);
+  if (effectiveExtension === ".jpg" || effectiveExtension === ".jpeg") result = parseJpeg(buffer);
+  else if (effectiveExtension === ".png") result = parsePng(buffer);
+  else if (effectiveExtension === ".webp") result = parseWebp(buffer);
   else return null;
   if (!result) return null;
   if (result.width > MAX_DIMENSION || result.height > MAX_DIMENSION) return null;

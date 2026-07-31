@@ -24,6 +24,8 @@ INJECTOR_PATH="$PROJECT_ROOT/windows/scripts/injector.mjs"
 IMAGE_SERVER_PATH="$PROJECT_ROOT/windows/scripts/image-server.mjs"
 STATE_DIR="$HOME/.opencode-dream-skin"
 STATE_FILE="$STATE_DIR/state.json"
+PAUSE_FILE="$STATE_DIR/pause.flag"
+INJECTOR_LOG="$STATE_DIR/injector.log"
 
 # ─── Parse arguments ──────────────────────────────────────────────────────────
 
@@ -33,6 +35,77 @@ THEME_DIR=""
 NO_TRAY=false
 PAUSE=false
 DRY_RUN=false
+STARTED_NEW_APP=false
+INJECTOR_PID=""
+IMAGE_SERVER_PID=""
+OPENCODE_PID=""
+CLEANUP_DONE=false
+STATE_ENABLED=true
+
+prepare_runtime_paths() {
+  local temp_root="${TMPDIR:-/tmp}"
+  local write_probe="$STATE_DIR/.write-test.$$"
+
+  mkdir -p "$STATE_DIR" 2>/dev/null || true
+  if touch "$write_probe" 2>/dev/null; then
+    rm -f "$write_probe"
+    return
+  fi
+
+  STATE_ENABLED=false
+  STATE_FILE=""
+  PAUSE_FILE="$temp_root/opencode-dream-skin-${CDP_PORT}.pause"
+  INJECTOR_LOG="$temp_root/opencode-dream-skin-${CDP_PORT}.log"
+  echo "[WARN] State directory is not writable, using temporary runtime files"
+}
+
+verify_skin_injection() {
+  local timeout_ms="${1:-5000}"
+  node "$INJECTOR_PATH" \
+    --port "$CDP_PORT" \
+    --auto-browser-id \
+    --theme-dir "$THEME_DIR" \
+    --verify \
+    --timeout-ms "$timeout_ms" \
+    > /dev/null 2>&1
+}
+
+cleanup() {
+  local exit_code=$?
+  if [[ "$CLEANUP_DONE" == "true" ]]; then
+    return
+  fi
+  CLEANUP_DONE=true
+
+  if [[ -n "$INJECTOR_PID" ]] && kill -0 "$INJECTOR_PID" 2>/dev/null; then
+    echo "[INFO] Stopping injector..."
+    kill -TERM "$INJECTOR_PID" 2>/dev/null || true
+    wait "$INJECTOR_PID" 2>/dev/null || true
+  fi
+
+  if [[ -n "$IMAGE_SERVER_PID" ]] && kill -0 "$IMAGE_SERVER_PID" 2>/dev/null; then
+    echo "[INFO] Stopping image server..."
+    kill -TERM "$IMAGE_SERVER_PID" 2>/dev/null || true
+    wait "$IMAGE_SERVER_PID" 2>/dev/null || true
+  fi
+
+  rm -f "$STATE_FILE" "$PAUSE_FILE"
+  echo "[INFO] Cleanup complete"
+
+  return "$exit_code"
+}
+
+handle_interrupt() {
+  echo "[INFO] Received interrupt signal"
+  if [[ "$STARTED_NEW_APP" == "true" ]]; then
+    echo "[INFO] Stopping OpenCode..."
+    stop_opencode_app "$OPENCODE_PATH" 5 true
+  fi
+  exit 130
+}
+
+trap cleanup EXIT
+trap handle_interrupt INT TERM
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -121,12 +194,18 @@ fi
 
 # ─── Check if already running ──────────────────────────────────────────────────
 
+REUSE_RUNNING_APP=false
 if test_opencode_port_owner "$CDP_PORT"; then
   echo "[INFO] Port $CDP_PORT is already in use by OpenCode"
   running="$(get_opencode_processes "$OPENCODE_PATH")"
   if [[ -n "$running" ]]; then
-    echo "[INFO] OpenCode is already running with skin injection"
-    exit 0
+    OPENCODE_PID="$(get_opencode_main_pids "$OPENCODE_PATH" | head -1 || true)"
+    if verify_skin_injection 5000; then
+      echo "[INFO] OpenCode is already running with verified skin injection"
+      exit 0
+    fi
+    echo "[INFO] Reusing existing OpenCode instance and restoring skin injection"
+    REUSE_RUNNING_APP=true
   fi
 fi
 
@@ -141,6 +220,7 @@ if [[ "$DRY_RUN" == "true" ]]; then
   echo "  Injector:       $INJECTOR_PATH"
   echo "  Image server:   $IMAGE_SERVER_PATH"
   echo "  State file:     $STATE_FILE"
+  echo "  Pause file:     $PAUSE_FILE"
   echo "  No tray:        $NO_TRAY"
   echo "  Pause:          $PAUSE"
   echo "================="
@@ -149,31 +229,34 @@ fi
 
 # ─── Start OpenCode ───────────────────────────────────────────────────────────
 
-echo "[INFO] Starting OpenCode..."
-
 cdp_arg="--remote-debugging-port=$CDP_PORT"
+prepare_runtime_paths
 
-# Must start in current shell (not $()) so PID is trackable with `wait`
 if [[ ! -x "$OPENCODE_PATH" ]]; then
   echo "[ERROR] OpenCode not found: $OPENCODE_PATH" >&2
   exit 1
 fi
-nohup "$OPENCODE_PATH" "$cdp_arg" > /dev/null 2>&1 &
-OPENCODE_PID=$!
-
-if [[ -z "$OPENCODE_PID" || "$OPENCODE_PID" -eq 0 ]]; then
-  echo "[ERROR] Failed to start OpenCode" >&2
-  exit 1
+if [[ "$REUSE_RUNNING_APP" != "true" ]]; then
+  echo "[INFO] Starting OpenCode..."
+  OPENCODE_PID="$(start_opencode_app "$OPENCODE_PATH" "$cdp_arg")"
+  if [[ -z "$OPENCODE_PID" || ! "$OPENCODE_PID" =~ ^[0-9]+$ ]]; then
+    echo "[ERROR] Failed to start OpenCode" >&2
+    exit 1
+  fi
+  STARTED_NEW_APP=true
+  echo "[INFO] OpenCode started (PID: $OPENCODE_PID)"
+else
+  echo "[INFO] Using running OpenCode PID: ${OPENCODE_PID:-unknown}"
 fi
-
-echo "[INFO] OpenCode started (PID: $OPENCODE_PID)"
 
 # ─── Wait for CDP readiness ────────────────────────────────────────────────────
 
 echo "[INFO] Waiting for CDP to be ready on port $CDP_PORT..."
 if ! wait_opencode_ready "$CDP_PORT" 30; then
   echo "[ERROR] CDP did not become ready within 30 seconds" >&2
-  stop_opencode_app "$OPENCODE_PATH" 5 true
+  if [[ "$STARTED_NEW_APP" == "true" ]]; then
+    stop_opencode_app "$OPENCODE_PATH" 5 true
+  fi
   exit 1
 fi
 echo "[INFO] CDP is ready on port $CDP_PORT"
@@ -183,7 +266,7 @@ echo "[INFO] CDP is ready on port $CDP_PORT"
 IMAGE_SERVER_PID=""
 if [[ -f "$IMAGE_SERVER_PATH" ]]; then
   echo "[INFO] Starting image server..."
-  nohup node "$IMAGE_SERVER_PATH" --port 18765 --theme-dir "$THEME_DIR" > /dev/null 2>&1 &
+  node "$IMAGE_SERVER_PATH" --port 18765 --theme-dir "$THEME_DIR" > /dev/null 2>&1 &
   IMAGE_SERVER_PID=$!
   echo "[INFO] Image server started (PID: $IMAGE_SERVER_PID)"
 fi
@@ -195,54 +278,80 @@ injector_args=(
   "--port" "$CDP_PORT"
   "--auto-browser-id"
   "--theme-dir" "$THEME_DIR"
-  "--once"
-  "--timeout-ms" "15000"
+  "--watch"
+  "--timeout-ms" "30000"
+  "--pause-file" "$PAUSE_FILE"
 )
 if [[ "$PAUSE" == "true" ]]; then
-  injector_args+=("--pause")
+  : > "$PAUSE_FILE"
+else
+  rm -f "$PAUSE_FILE"
 fi
 
-set +e
-node "$INJECTOR_PATH" "${injector_args[@]}"
-injector_exit=$?
-set -e
+rm -f "$INJECTOR_LOG"
+node "$INJECTOR_PATH" "${injector_args[@]}" > "$INJECTOR_LOG" 2>&1 &
+INJECTOR_PID=$!
+echo "[INFO] Injector started (PID: $INJECTOR_PID)"
 
-if [[ $injector_exit -eq 0 || $injector_exit -eq 2 ]]; then
-  echo "[INFO] Skin injection completed"
+if [[ "$PAUSE" == "true" ]]; then
+  if kill -0 "$INJECTOR_PID" 2>/dev/null; then
+    echo "[INFO] Skin watcher started in paused mode"
+  else
+    echo "[WARN] Skin watcher exited unexpectedly while starting paused"
+    tail -n 20 "$INJECTOR_LOG" 2>/dev/null || true
+  fi
 else
-  echo "[WARN] Skin injection may have failed (exit code: $injector_exit)"
+  skin_verified=false
+  for _ in $(seq 1 20); do
+    if ! kill -0 "$INJECTOR_PID" 2>/dev/null; then
+      break
+    fi
+    if verify_skin_injection 5000; then
+      skin_verified=true
+      break
+    fi
+    sleep 1
+  done
+
+  if [[ "$skin_verified" == "true" ]]; then
+    echo "[INFO] Skin injection verified"
+  else
+    echo "[WARN] Skin injection could not be verified"
+    tail -n 20 "$INJECTOR_LOG" 2>/dev/null || true
+  fi
 fi
 
 # ─── Save state ────────────────────────────────────────────────────────────────
 
-mkdir -p "$STATE_DIR"
-
-cat > "$STATE_FILE" << EOF
+if [[ "$STATE_ENABLED" == "true" ]]; then
+  cat > "$STATE_FILE" << EOF
 {
   "OpenCodePath": "$OPENCODE_PATH",
   "CdpPort": $CDP_PORT,
   "ThemeDir": "$THEME_DIR",
-  "InjectorPid": null,
+  "InjectorPid": ${INJECTOR_PID:-null},
+  "PauseFile": "$PAUSE_FILE",
   "StartTime": "$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")",
   "Version": "2.0.0"
 }
 EOF
-echo "[INFO] State saved to: $STATE_FILE"
+  echo "[INFO] State saved to: $STATE_FILE"
+else
+  echo "[INFO] State persistence is disabled for this run"
+fi
 
 # ─── Wait for OpenCode to exit ────────────────────────────────────────────────
 
 echo "[INFO] OpenCode is running. Press Ctrl+C to stop."
 echo "[INFO] Press Ctrl+S in OpenCode to toggle settings panel."
 
-wait "$OPENCODE_PID" 2>/dev/null || true
-echo "[INFO] OpenCode exited"
-
-# ─── Cleanup ──────────────────────────────────────────────────────────────────
-
-if [[ -n "$IMAGE_SERVER_PID" ]] && kill -0 "$IMAGE_SERVER_PID" 2>/dev/null; then
-  echo "[INFO] Stopping image server..."
-  kill -TERM "$IMAGE_SERVER_PID" 2>/dev/null || true
+if [[ -n "$OPENCODE_PID" && "$OPENCODE_PID" =~ ^[0-9]+$ ]]; then
+  while kill -0 "$OPENCODE_PID" 2>/dev/null; do
+    sleep 1
+  done
+else
+  while test_opencode_port_owner "$CDP_PORT"; do
+    sleep 1
+  done
 fi
-
-rm -f "$STATE_FILE"
-echo "[INFO] Cleanup complete"
+echo "[INFO] OpenCode exited"

@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.2] - 2026-07-31
+
+### Fixed
+- macOS 启动器不再直接执行 `.app/Contents/MacOS/OpenCode`，改为优先通过 `open -na ... --args` 启动 bundle，避免 Electron 进入 CDP 端口可监听但 `/json/version` 与 `/json/list` 不稳定的异常状态
+- macOS 注入策略从一次性 `--once` 改为后台 `--watch`，解决 renderer target 延迟出现时背景未加载、`Ctrl+S` 设置面板快捷键未注册的问题
+- macOS 对“已运行实例”增加真实注入校验，不再仅凭端口与进程存在就误判为“已带皮肤运行”
+- macOS `--pause` 参数改为通过 `pause file` 传递给 injector，修复原先向 injector 传入未知参数导致的启动失败
+- macOS 启动器改为轮询 OpenCode 主进程退出，并记录 injector PID 到状态文件，确保 `.app` bundle 启动场景也能正确清理
+- 主题图片校验与图片服务器改为优先根据文件头识别真实格式，修复扩展名为 `.png` 但内容实际为 JPEG 时 injector 直接拒绝加载背景的问题
+- README 与架构文档同步更新 macOS 启动/注入链路说明
+
 ## [2.0.1] - 2026-07-28
 
 ### Added

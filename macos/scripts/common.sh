@@ -79,6 +79,61 @@ find_opencode_install() {
 # Starts the OpenCode executable with given arguments in background.
 # Prints the PID on success.
 
+opencode_bundle_from_executable() {
+  local executable_path="$1"
+  local bundle_path
+  bundle_path="$(echo "$executable_path" | sed 's|/Contents/MacOS/.*|.app|')"
+  if [[ -d "$bundle_path" && -f "$bundle_path/Contents/Info.plist" ]]; then
+    echo "$bundle_path"
+  fi
+}
+
+get_opencode_main_pids() {
+  local executable_path="$1"
+  [[ -z "$executable_path" ]] && return 1
+
+  ps -Ao pid=,args= 2>/dev/null | awk -v exe="$executable_path" '
+    {
+      pid = $1
+      $1 = ""
+      sub(/^ +/, "", $0)
+      if ($0 == exe || index($0, exe " ") == 1) print pid
+    }
+  '
+}
+
+wait_for_new_opencode_pid() {
+  local executable_path="$1"
+  local existing_pids="${2:-}"
+  local timeout_sec="${3:-15}"
+
+  local deadline
+  deadline=$(date +%s)
+  deadline=$((deadline + timeout_sec))
+
+  while true; do
+    local now
+    now=$(date +%s)
+    if [[ $now -ge $deadline ]]; then
+      return 1
+    fi
+
+    local current_pids
+    current_pids="$(get_opencode_main_pids "$executable_path" || true)"
+    if [[ -n "$current_pids" ]]; then
+      local pid
+      while IFS= read -r pid; do
+        [[ -z "$pid" ]] && continue
+        if [[ -z "$existing_pids" ]] || ! grep -Fxq "$pid" <<< "$existing_pids"; then
+          echo "$pid"
+          return 0
+        fi
+      done <<< "$current_pids"
+    fi
+    sleep 0.5
+  done
+}
+
 start_opencode_app() {
   local executable_path="$1"
   shift
@@ -88,8 +143,27 @@ start_opencode_app() {
     return 1
   fi
 
-  nohup "$executable_path" "$@" > /dev/null 2>&1 &
-  local pid=$!
+  local bundle_path
+  bundle_path="$(opencode_bundle_from_executable "$executable_path")"
+
+  local pid
+  if [[ -n "$bundle_path" ]] && command -v open &>/dev/null; then
+    local existing_pids
+    existing_pids="$(get_opencode_main_pids "$executable_path" || true)"
+    if ! open -na "$bundle_path" --args "$@" > /dev/null 2>&1; then
+      echo "[ERROR] Failed to launch OpenCode bundle: $bundle_path" >&2
+      return 1
+    fi
+    pid="$(wait_for_new_opencode_pid "$executable_path" "$existing_pids" 15 || true)"
+    if [[ -z "$pid" ]]; then
+      echo "[ERROR] OpenCode did not expose a main process after launch: $bundle_path" >&2
+      return 1
+    fi
+  else
+    nohup "$executable_path" "$@" > /dev/null 2>&1 &
+    pid=$!
+  fi
+
   echo "[INFO] OpenCode started (PID: $pid)" >&2
   echo "$pid"
 }
@@ -158,7 +232,15 @@ get_opencode_processes() {
   local executable_path="${1:-}"
 
   if [[ -n "$executable_path" ]]; then
-    pgrep -fl "$(basename "$executable_path")" 2>/dev/null || true
+    local pids
+    pids="$(get_opencode_main_pids "$executable_path" || true)"
+    if [[ -n "$pids" ]]; then
+      local pid
+      while IFS= read -r pid; do
+        [[ -z "$pid" ]] && continue
+        ps -p "$pid" -o pid=,args= 2>/dev/null || true
+      done <<< "$pids"
+    fi
   else
     pgrep -fl "$APP_NAME" 2>/dev/null || true
   fi
