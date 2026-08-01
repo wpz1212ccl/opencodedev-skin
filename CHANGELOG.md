@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.2] - 2026-07-31
+## [2.1.1] - 2026-08-01
 
 ### Fixed
 - macOS 启动器不再直接执行 `.app/Contents/MacOS/OpenCode`，改为优先通过 `open -na ... --args` 启动 bundle，避免 Electron 进入 CDP 端口可监听但 `/json/version` 与 `/json/list` 不稳定的异常状态
@@ -10,6 +10,25 @@
 - macOS 启动器改为轮询 OpenCode 主进程退出，并记录 injector PID 到状态文件，确保 `.app` bundle 启动场景也能正确清理
 - 主题图片校验与图片服务器改为优先根据文件头识别真实格式，修复扩展名为 `.png` 但内容实际为 JPEG 时 injector 直接拒绝加载背景的问题
 - README 与架构文档同步更新 macOS 启动/注入链路说明
+
+## [2.1.0] - 2026-08-01
+
+### Performance
+- **启动性能优化（实测 20-22s → 15-18s）**：injector 优先使用 image-server 提供壁纸（HTTP HEAD 探测 + 500ms 超时），避免将壁纸 base64 内联进 3.6MB payload；image-server 不可用时才回退 data: URL
+- **魔数嗅探 MIME 检测**：`detectImageMime` 按文件真实格式（JPEG/PNG/WebP 魔数）识别，不再信任扩展名——修复 JPEG 伪装成 .png 导致 `parsePng` 失败、injector 崩溃退出的问题
+- **视频壁纸强制走 image-server**：拒绝将 100MB+ 视频 base64 内联进 payload（会拖爆渲染进程），image-server 未运行时明确报错而非静默失败
+- **SIGINT/SIGTERM 立即中断**：`runWatch` 改用 AbortController + interruptibleSleep，Ctrl+C 不再等待最长 2s 的 sleep 轮询
+
+### Fixed
+- **CSS @layer 优先级**：皮肤样式包裹进 `@layer dream-skin`，避免被 OpenCode 的 utilities 层覆盖（滑块/背景失效）
+- **customArt XSS 加固**：`sanitizeCustomArt` 只接受 data:（图片/视频）与 localhost 环回地址，拒绝任意 file:// 或 javascript: URL
+- **tray.ps1 数组拼接**：修复 PowerShell 5.1 `@($a) + $b` 被解析为参数名的问题
+- **setup-autostart.ps1 重构**：改为创建 `D:\oc-skin` junction + 快捷方式直连 start.ps1（替代旧 auto-inject 监控），新增 `-WhatIf` 预览模式
+- **start.ps1**：移除误传给 OpenCode.exe 的 `--theme-dir` 参数（该参数仅 image-server/injector 使用）
+
+### Added
+- `detectImageMime` / `detectImageFormat` 导出（image-metadata.mjs）
+- `windows/tests/` 测试目录：skin-monitor.mjs（皮肤注册监控）、perf-*.mjs（启动性能测量脚本）、回归测试工具
 
 ## [2.0.1] - 2026-07-28
 

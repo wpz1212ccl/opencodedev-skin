@@ -119,8 +119,28 @@
     }
   }
 
-  // Use custom art if saved, otherwise use default
-  var activeArt = settings.customArt || ART;
+  // Sanitize customArt: a future XSS or a tampered localStorage value could
+  // attempt to make the renderer fetch arbitrary file:// or javascript: URLs.
+  // Accept only the schemes we actually emit (data:, http://localhost) and
+  // fall back to the bundled ART if the value is malformed.
+  function sanitizeCustomArt(value) {
+    if (typeof value !== "string" || value.length < 1) return ART;
+    if (value.length > 16 * 1024 * 1024) return ART;
+    if (value.indexOf("data:") === 0) {
+      return /^data:(image|video)\/(png|jpe?g|webp|gif|mp4|webm|ogg|mov);base64,/.test(value) ? value : ART;
+    }
+    if (/^https?:\/\//i.test(value)) {
+      try {
+        var u = new URL(value);
+        if (u.hostname === "127.0.0.1" || u.hostname === "localhost" || u.hostname === "[::1]" || u.hostname === "::1") {
+          return value;
+        }
+      } catch (e) {}
+      return ART;
+    }
+    return ART;
+  }
+  var activeArt = sanitizeCustomArt(settings.customArt);
   applyCustomArt(activeArt);
 
   // ── Apply settings to CSS variables (batched with dirty checking) ──
@@ -157,7 +177,11 @@
     style.id = "opencode-dream-skin-style";
     (document.head || root).appendChild(style);
   }
-  style.textContent = CSS;
+  // OpenCode 的样式全部位于 CSS @layer（properties/theme/base/components/utilities）中。
+  // 按 CSS 规范，带 !important 的分层样式优先于未分层样式，因此皮肤样式若不分层，
+  // 背景色等声明会被 utilities 层覆盖（表现为滑块无效）。
+  // 将皮肤 CSS 包裹进最后声明的 @layer dream-skin，确保其优先级高于 OpenCode 各层。
+  style.textContent = "@layer dream-skin { " + CSS + " }";
 
   // Apply classes to root
   root.classList.add("opencode-dream-skin");
@@ -462,27 +486,30 @@
   var observer = null;
   var lastHomeState = !!home;
   var homeCheckTimer = null;
+  function runHomeCheck() {
+    var hasHome = !!document.querySelector('[data-component="session-new-design"], [data-component="home"], [data-component="welcome"], [data-component="session-list"], [data-component="session-manager"]');
+    if (hasHome === lastHomeState) return false;
+    lastHomeState = hasHome;
+    if (hasHome) {
+      var el = document.querySelector('[data-component="session-new-design"], [data-component="session-list"], [data-component="session-manager"]');
+      var c = el && (el.closest('[role="main"]') || el.parentElement);
+      if (c) { c.classList.add(HOME_CLASS); c.classList.remove(TASK_CLASS); }
+      var ml = document.getElementById("root") && document.getElementById("root").firstElementChild;
+      if (ml) ml.classList.add(HOME_CLASS);
+      root.classList.add(ACTIVE_HOME_CLASS);
+    } else {
+      document.querySelectorAll("." + HOME_CLASS).forEach(function (n) { n.classList.remove(HOME_CLASS); });
+      var m2 = document.getElementById("root") && document.getElementById("root").firstElementChild;
+      if (m2) m2.classList.remove(HOME_CLASS);
+      root.classList.remove(ACTIVE_HOME_CLASS);
+    }
+    return true;
+  }
   function scheduleHomeCheck() {
     if (homeCheckTimer) return;
     homeCheckTimer = setTimeout(function () {
       homeCheckTimer = null;
-      var hasHome = !!document.querySelector('[data-component="session-new-design"], [data-component="home"], [data-component="welcome"], [data-component="session-list"], [data-component="session-manager"]');
-      if (hasHome !== lastHomeState) {
-        lastHomeState = hasHome;
-        if (hasHome) {
-          var el = document.querySelector('[data-component="session-new-design"], [data-component="session-list"], [data-component="session-manager"]');
-          var c = el && (el.closest('[role="main"]') || el.parentElement);
-          if (c) { c.classList.add(HOME_CLASS); c.classList.remove(TASK_CLASS); }
-          var ml = document.getElementById("root") && document.getElementById("root").firstElementChild;
-          if (ml) ml.classList.add(HOME_CLASS);
-          root.classList.add(ACTIVE_HOME_CLASS);
-        } else {
-          document.querySelectorAll("." + HOME_CLASS).forEach(function (n) { n.classList.remove(HOME_CLASS); });
-          var m2 = document.getElementById("root") && document.getElementById("root").firstElementChild;
-          if (m2) m2.classList.remove(HOME_CLASS);
-          root.classList.remove(ACTIVE_HOME_CLASS);
-        }
-      }
+      runHomeCheck();
     }, 150);
   }
   if (typeof MutationObserver === "function") {
@@ -508,11 +535,34 @@
     observer.observe(root, { attributes: true, attributeFilter: ["data-theme", "data-color-scheme"] });
   }
 
-  // Periodic fallback: check page type every 500ms in case MutationObserver misses navigation
-  var homePollTimer = setInterval(function () {
-    if (!window.__OPENCODE_DREAM_SKIN_STATE__) { clearInterval(homePollTimer); return; }
-    scheduleHomeCheck();
-  }, 500);
+  // Periodic fallback: check page type with exponential backoff. The
+  // MutationObserver above usually catches navigation, but Electron's SPA
+  // routing occasionally fires no DOM mutations we observe; this timer is a
+  // safety net. It starts at 500ms and stretches up to 3000ms when the page
+  // type is stable, cutting the steady-state wakeups by ~70%.
+  var homePollTimer = null;
+  var pollInterval = 500;
+  var stableCount = 0;
+  var POLL_STABLE_THRESHOLD = 4;
+  var POLL_MAX_INTERVAL = 3000;
+  function pollLoop() {
+    if (!window.__OPENCODE_DREAM_SKIN_STATE__) {
+      homePollTimer = null;
+      return;
+    }
+    var changed = runHomeCheck();
+    if (changed) {
+      pollInterval = 500;
+      stableCount = 0;
+    } else {
+      stableCount += 1;
+      if (stableCount >= POLL_STABLE_THRESHOLD) {
+        pollInterval = Math.min(POLL_MAX_INTERVAL, pollInterval + 500);
+      }
+    }
+    homePollTimer = setTimeout(pollLoop, pollInterval);
+  }
+  homePollTimer = setTimeout(pollLoop, pollInterval);
 
   // ── Permission request notification (popup + sound) ──
   var permissionObserver = null;

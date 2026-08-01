@@ -51,9 +51,13 @@ function Switch-Theme {
 
   # Restart injector with new theme
   $newState = Get-Content $stateFile | ConvertFrom-Json
-  $injectorArgs = @("--port", $state.CdpPort, "--auto-browser-id", "--theme-dir", $newState.ThemeDir)
   $injectorPath = "$PSScriptRoot\injector.mjs"
-  $proc = Start-Process -FilePath "node" -ArgumentList @($injectorPath) + $injectorArgs -PassThru -WindowStyle Hidden
+  $proc = Start-Process -FilePath "node" -ArgumentList @(
+    $injectorPath,
+    "--port", $state.CdpPort,
+    "--auto-browser-id",
+    "--theme-dir", $newState.ThemeDir
+  ) -PassThru -WindowStyle Hidden
   $newState.InjectorPid = $proc.Id
   $newState | ConvertTo-Json | Set-Content -Path $stateFile -Encoding UTF8
   $trayIcon.ShowBalloonTip(2000, "OpenCode Skin", "Theme: $ThemeName", [System.Windows.Forms.ToolTipIcon]::Info)
