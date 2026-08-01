@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readImageMetadata, detectImageMime } from "./image-metadata.mjs";
+import { detectImageExtension, detectImageMimeType, readImageMetadata } from "./image-metadata.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const here = path.dirname(scriptPath);
@@ -250,7 +250,7 @@ class BrowserIdentityAnchor {
 
 async function fetchCdpJson(port, resource) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2000);
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const response = await fetch(`http://127.0.0.1:${port}${resource}`, {
       redirect: "error",
@@ -379,10 +379,16 @@ async function loadTheme(themeDir) {
   if (imageBytes.length < 1 || imageBytes.length > maxSize) {
     throw new Error(`Theme ${isVideo ? "video" : "image"} must be between 1 byte and ${maxSize / 1024 / 1024} MB`);
   }
+  const detectedImageExtension = isVideo || extension === ".svg"
+    ? extension
+    : detectImageExtension(imageBytes, extension);
+  const detectedImageMimeType = isVideo
+    ? null
+    : detectImageMimeType(imageBytes, extension);
   
   // SVG 和视频文件跳过二进制元数据验证
   if (extension !== ".svg" && !isVideo) {
-    const artMetadata = readImageMetadata(imageBytes, extension);
+    const artMetadata = readImageMetadata(imageBytes, detectedImageExtension);
     if (!artMetadata) {
       throw new Error("Theme image metadata is invalid or exceeds the 16384px / 50MP safety limit");
     }
@@ -398,6 +404,8 @@ async function loadTheme(themeDir) {
     themePath,
     imagePath: realImagePath,
     imageBytes,
+    detectedImageExtension,
+    detectedImageMimeType,
     fingerprint,
     sourceStamp: `${themeStat.size}:${themeStat.mtimeMs}:${imageStat.size}:${imageStat.mtimeMs}`,
   };
@@ -513,7 +521,7 @@ async function connectAppTargets(port, timeoutMs, expectedBrowserId) {
         let session;
         try {
           session = await connectTarget(target, port);
-          const probe = await probeSession(session);
+            const probe = await waitForAppProbe(session, 3000);
           if (probe?.opencode) connected.push({ target, session, probe });
           else session.close();
         } catch (error) {

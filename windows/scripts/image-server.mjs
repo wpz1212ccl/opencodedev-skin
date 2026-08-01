@@ -8,6 +8,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { detectImageMimeType } from "./image-metadata.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,12 +36,11 @@ async function main() {
     process.exit(1);
   }
 
-  const ext = path.extname(imagePath).toLowerCase();
   const mimeMap = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".mp4": "video/mp4" };
-  const contentType = mimeMap[ext] || "application/octet-stream";
 
   let cachedData = null;
   let cachedPath = null;
+  let cachedContentType = null;
 
   const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
   const VIDEO_EXTS = new Set([".mp4", ".webm", ".ogg", ".mov"]);
@@ -53,9 +53,10 @@ async function main() {
         if (!cachedData || cachedPath !== imagePath) {
           cachedData = await fs.readFile(imagePath);
           cachedPath = imagePath;
+          cachedContentType = detectImageMimeType(cachedData, path.extname(imagePath).toLowerCase());
         }
         res.writeHead(200, {
-          "Content-Type": contentType,
+          "Content-Type": cachedContentType || "application/octet-stream",
           "Content-Length": cachedData.length,
           "Access-Control-Allow-Origin": "*",
           "Cache-Control": "public, max-age=3600",
@@ -92,7 +93,9 @@ async function main() {
       try {
         const data = await fs.readFile(filePath);
         const ext = path.extname(safeName).toLowerCase();
-        const mime = mimeMap[ext] || "application/octet-stream";
+        const mime = VIDEO_EXTS.has(ext)
+          ? (mimeMap[ext] || "application/octet-stream")
+          : detectImageMimeType(data, ext);
         res.writeHead(200, {
           "Content-Type": mime,
           "Content-Length": data.length,

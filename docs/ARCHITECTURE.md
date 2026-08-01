@@ -41,6 +41,16 @@
    - 启动 MutationObserver 监听页面变化
    - 启动 500ms 定时轮询保底检测
 
+## Launcher Coordination
+
+- Windows 启动器以内联 `--once` 注入为主，适合快捷方式直达的稳定启动链路
+- macOS 启动器优先通过 `open -na ... --args` 拉起 `.app` bundle，避免直接执行 Electron 二进制导致 CDP 不稳定
+- macOS 启动器使用 `injector.mjs --watch` 常驻，负责：
+  - 复用已运行但未注入皮肤的 OpenCode 实例
+  - 等待延迟出现的 renderer target
+  - 页面导航后重新注入
+  - 通过 `--verify` 做启动后的皮肤状态校验
+
 ## CSS Specificity 策略
 
 OpenCode 使用 Tailwind CSS 内联样式，注入的 CSS 必须用 `!important` + 高 specificity 覆盖：

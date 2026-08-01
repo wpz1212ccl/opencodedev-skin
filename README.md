@@ -112,6 +112,22 @@ cd windows
 
 关闭 OpenCode 后自动清理所有后台进程，零残留。
 
+#### 方式二（macOS）：运行启动脚本
+
+```bash
+chmod +x ./macos/scripts/*.sh
+./macos/scripts/start.sh --port 9335
+```
+
+macOS 启动器会自动：
+1. 使用 `open -na` 启动 `.app` bundle，避免直接执行 Electron 二进制导致的异常状态
+2. 等待 CDP 就绪
+3. 启动图片服务器（HTTP 端口 18765）
+4. 以 `--watch` 模式启动 injector，并验证初次皮肤注入
+5. 如果 OpenCode 已经在运行但皮肤未生效，复用现有实例并补做注入
+
+关闭 OpenCode 后自动清理 injector、图片服务器和状态文件。
+
 #### 方式三：手动注入
 
 ```bash
@@ -207,7 +223,7 @@ start.ps1（PowerShell 隐藏窗口）
     ├─ 启动 image-server.mjs（HTTP 端口 18765，提供壁纸）
     ├─ 启动 OpenCode（--remote-debugging-port=9335）
     ├─ 等待 CDP 就绪
-    └─ 运行 injector.mjs（--once 模式）
+    └─ 运行 injector.mjs（启动器管理）
          ↓
          通过 WebSocket 连接 CDP
          ↓
@@ -268,8 +284,10 @@ Args: -WindowStyle Hidden -ExecutionPolicy Bypass -File "D:\oc-skin\opencode-ski
 ### Q: 皮肤没有生效？
 
 1. 检查 OpenCode 是否以 `--remote-debugging-port=9335` 启动
-2. 运行手动注入：`node scripts\injector.mjs --port 9335 --auto-browser-id --once`
-3. 如果首页壁纸不显示，参考 `renderer-inject.js` 中的首页选择器配置
+2. macOS 优先使用 `./macos/scripts/start.sh`，它会复用已有实例并保持 injector `--watch` 常驻
+3. 手动验证注入状态：`node windows/scripts/injector.mjs --port 9335 --auto-browser-id --verify --theme-dir ./windows/assets`
+4. 手动恢复注入：`node windows/scripts/injector.mjs --port 9335 --auto-browser-id --watch --theme-dir ./windows/assets`
+5. 如果首页壁纸不显示，参考 `renderer-inject.js` 中的首页选择器配置
 
 ### Q: 如何更换壁纸？
 
